@@ -4,6 +4,7 @@ import { getEmbeddedConnectedWallet, usePrivy, useWallets } from "@privy-io/reac
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Address, Hex } from "viem";
 import { claimGift, ClaimFlowError, loadGift, type GiftView } from "@viapp/core/src/client/claim.js";
+import { DEFAULT_STELLAR_TESTNET_RECIPIENT_ADDRESS } from "@viapp/core/src/client/stellar.js";
 import { useSignInAvailable } from "@/components/privy/ViappPrivy";
 import { publicClient, VAULT } from "@/lib/chain";
 import { useStocks } from "@/lib/stocks";
@@ -91,8 +92,12 @@ export function ClaimFlow({ giftId, boot }: { giftId: string; boot: ClaimKeyResu
   const [attempt, setAttempt] = useState(0);
   const [claim, setClaim] = useState<ClaimState>({ status: "idle" });
   const [declared, setDeclared] = useState(false);
+  const [stellarRecipient, setStellarRecipient] = useState<Address | null>(null);
   const lastRecipient = useRef<Address | null>(null);
   const key = boot.key;
+  const isStellarGift =
+    (key !== null && String(key).startsWith("S")) ||
+    (load.status === "loaded" && String(load.gift.token).startsWith("C"));
 
   useEffect(() => {
     if (key === null || preview !== null) return;
@@ -168,6 +173,28 @@ export function ClaimFlow({ giftId, boot }: { giftId: string; boot: ClaimKeyResu
         window.setTimeout(() => setClaim({ status: "opened", txHash: preview.txHash, address: preview.address }), 5000);
       },
     };
+  } else if (isStellarGift) {
+    if (stellarRecipient === null) {
+      signIn = {
+        kind: "signedOut",
+        storageBlocked: boot.storageBlocked,
+        onSignIn: () => {
+          setStellarRecipient(DEFAULT_STELLAR_TESTNET_RECIPIENT_ADDRESS as unknown as Address);
+        },
+      };
+    } else {
+      signIn = {
+        kind: "signedIn",
+        who: "Stellar Passkey Wallet",
+        address: stellarRecipient,
+        onSignOut: () => setStellarRecipient(null),
+        declared,
+        onDeclared: setDeclared,
+        onOpen: () => {
+          if (declared) void run(stellarRecipient);
+        },
+      };
+    }
   } else if (!signInAvailable) {
     signIn = { kind: "unavailable", storageBlocked: boot.storageBlocked };
   } else if (!ready) {

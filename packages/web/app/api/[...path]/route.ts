@@ -5,7 +5,13 @@ import { handleStocks } from "@viapp/core/src/stocks.js";
 import { handleQuote } from "@viapp/core/src/quote.js";
 import { handleClaim } from "@viapp/core/src/claim.js";
 import { parseGiftId } from "@viapp/core/src/gift.js";
-import { readStellarGift, readStellarVaultStats } from "@viapp/core/src/stellar-rpc.js";
+import {
+  executeStellarCreateGift,
+  executeStellarRelayerClaim,
+  getTestnetOperatorKeypair,
+  readStellarGift,
+  readStellarVaultStats,
+} from "@viapp/core/src/stellar-rpc.js";
 import { BootError, createServerDeps } from "@viapp/core/src/server-deps.js";
 
 export const runtime = "nodejs";
@@ -162,7 +168,36 @@ async function handle(request: NextRequest): Promise<Response> {
       return new Response(answer.body, { status: answer.status, headers: answer.headers });
     }
 
-    // 5. Stellar Gasless Relayer Claim (POST /api/claim)
+    // 5. Stellar On-Chain Gift Creation (POST /api/gift/create)
+    if (path === "/api/gift/create" && request.method === "POST") {
+      let parsedBody: any = null;
+      try {
+        parsedBody = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        answer = json(400, { ok: false, error: "bad_json" });
+        return new Response(answer.body, { status: answer.status, headers: answer.headers });
+      }
+      if (!parsedBody || typeof parsedBody !== "object") {
+        answer = json(400, { ok: false, error: "bad_json" });
+        return new Response(answer.body, { status: answer.status, headers: answer.headers });
+      }
+      try {
+        const res = await executeStellarCreateGift({
+          symbol: String(parsedBody.symbol ?? "NVDA"),
+          amountRaw: BigInt(parsedBody.amountRaw ?? "1000000"),
+          claimKeyAddress: String(parsedBody.claimKeyAddress ?? ""),
+          keyProofHex: String(parsedBody.keyProofHex ?? ""),
+          sealedNoteHex: String(parsedBody.sealedNoteHex ?? "0x"),
+          expiryDays: Number(parsedBody.expiryDays ?? 30),
+        });
+        answer = json(res.ok ? 200 : 400, res);
+      } catch {
+        answer = json(502, { ok: false, error: "chain_failed" });
+      }
+      return new Response(answer.body, { status: answer.status, headers: answer.headers });
+    }
+
+    // 6. Stellar Gasless Relayer Claim (POST /api/claim)
     if (path === "/api/claim" && request.method === "POST") {
       let parsedBody: any = null;
       try {
@@ -178,12 +213,26 @@ async function handle(request: NextRequest): Promise<Response> {
         (parsedBody.chain === "stellar" ||
           (typeof parsedBody.recipient === "string" && parsedBody.recipient.startsWith("G")))
       ) {
-        const res = await handleClaim(
+        const check = await handleClaim(
           { devAllowUnknownCountry: true } as any,
           parsedBody,
           place,
         );
-        answer = json(res.status, res.body);
+        if (check.status !== 200 || !check.body.ok) {
+          answer = json(check.status, check.body);
+          return new Response(answer.body, { status: answer.status, headers: answer.headers });
+        }
+        const liveClaim = await executeStellarRelayerClaim({
+          giftId: BigInt(parsedBody.giftId),
+          recipient: String(parsedBody.recipient),
+          signature: String(parsedBody.signature),
+          relayerSecret: getTestnetOperatorKeypair().secret(),
+        });
+        if (!liveClaim.ok) {
+          answer = json(409, { ok: false, error: liveClaim.error });
+          return new Response(answer.body, { status: answer.status, headers: answer.headers });
+        }
+        answer = json(200, { ok: true, txHash: liveClaim.txHash, reused: false });
         return new Response(answer.body, { status: answer.status, headers: answer.headers });
       }
     }

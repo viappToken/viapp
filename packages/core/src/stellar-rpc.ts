@@ -14,13 +14,40 @@ import {
 } from "@stellar/stellar-sdk";
 import crypto from "node:crypto";
 import { DEFAULT_STELLAR_VAULT_CONTRACT_ID } from "./client/stellar.js";
-import { stellarVerifyClaim } from "./gift.js";
+import { stellarVerifyClaim, stellarVerifyKeyProof } from "./gift.js";
 import { getAllStellarCatalogAssets, STELLAR_TESTNET_ISSUER } from "./stocks-stellar.js";
 import { fromBaseUnits, TESTNET_PASSPHRASE } from "./trade-stellar.js";
 
 export const DEFAULT_STELLAR_RPC_URL = "https://soroban-testnet.stellar.org";
 // Read-only simulation source account on Stellar Testnet
 const READONLY_SOURCE_ACCOUNT = "GAZWESWQPZOIH2EH3IL37THBLKGLAC5FCHTLMWAXJGLKJPT4NRRIHN6B";
+
+/**
+ * Deterministic Stellar Testnet operator & recipient keypairs so `/send` and `/g/stellar/:id`
+ * execute real on-chain `create_gift` and gasless `claim` transactions on Stellar Testnet out-of-the-box.
+ */
+export function getTestnetOperatorKeypair(vaultContractId = DEFAULT_STELLAR_VAULT_CONTRACT_ID): Keypair {
+  const envSecret = process.env.STELLAR_RELAYER_SECRET ?? process.env.STELLAR_OPERATOR_SECRET;
+  if (envSecret && StrKey.isValidEd25519SecretSeed(envSecret)) {
+    return Keypair.fromSecret(envSecret);
+  }
+  const seed = crypto
+    .createHash("sha256")
+    .update(`viapp:stellar:testnet:operator:v1:${vaultContractId}`)
+    .digest();
+  return Keypair.fromRawEd25519Seed(seed);
+}
+
+export function getTestnetRecipientKeypair(vaultContractId = DEFAULT_STELLAR_VAULT_CONTRACT_ID): Keypair {
+  const seed = crypto
+    .createHash("sha256")
+    .update(`viapp:stellar:testnet:recipient:v1:${vaultContractId}`)
+    .digest();
+  return Keypair.fromRawEd25519Seed(seed);
+}
+
+export const STELLAR_TESTNET_OPERATOR_ADDRESS = getTestnetOperatorKeypair().publicKey();
+export const STELLAR_TESTNET_RECIPIENT_ADDRESS = getTestnetRecipientKeypair().publicKey();
 
 export type StellarGiftState = "None" | "Open" | "Claimed" | "Refunded";
 
@@ -327,7 +354,7 @@ export async function executeStellarRelayerClaim(params: {
         return { ok: false, error: "claim_refused" };
       }
 
-      const pollRes = await server.pollTransaction(sendRes.hash);
+      const pollRes = await server.pollTransaction(sendRes.hash, { attempts: 25 });
       if (pollRes.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
         return { ok: false, error: "claim_refused" };
       }
@@ -344,4 +371,113 @@ export async function executeStellarRelayerClaim(params: {
     .update(`viapp:stellar:claim:${vaultId}:${params.giftId}:${params.recipient}:${cleanSigHex.toLowerCase()}`)
     .digest("hex");
   return { ok: true, txHash: `0x${digest}` as `0x${string}` };
+}
+
+/**
+ * Verifies a client-generated Ed25519 registration keyProof and executes `create_gift` on the
+ * deployed Soroban GiftVault contract on Stellar Testnet. The secret claimKey never leaves the browser.
+ */
+export async function executeStellarCreateGift(params: {
+  symbol: string;
+  amountRaw: bigint;
+  claimKeyAddress: string;
+  keyProofHex: string;
+  sealedNoteHex: string;
+  expiryDays: number;
+  vaultContractId?: string;
+  rpcUrl?: string;
+  networkPassphrase?: string;
+}): Promise<
+  | { ok: true; giftId: string; txHash: `0x${string}`; sender: string; tokenContractId: string }
+  | { ok: false; error: "bad_stock" | "bad_amount" | "bad_key_proof" | "chain_failed" }
+> {
+  const vaultId = params.vaultContractId ?? process.env.STELLAR_VAULT_CONTRACT_ID ?? DEFAULT_STELLAR_VAULT_CONTRACT_ID;
+  const rpcUrl = params.rpcUrl ?? process.env.STELLAR_RPC_URL ?? DEFAULT_STELLAR_RPC_URL;
+  const passphrase = params.networkPassphrase ?? process.env.STELLAR_NETWORK_PASSPHRASE ?? TESTNET_PASSPHRASE;
+
+  if (params.amountRaw <= 0n) {
+    return { ok: false, error: "bad_amount" };
+  }
+
+  const allAssets = getAllStellarCatalogAssets(passphrase);
+  const stockAsset = allAssets.find((a) => a.code.toUpperCase() === params.symbol.toUpperCase());
+  if (!stockAsset) {
+    return { ok: false, error: "bad_stock" };
+  }
+
+  const operatorKp = getTestnetOperatorKeypair(vaultId);
+  const senderPub = operatorKp.publicKey();
+
+  const cleanProofHex = params.keyProofHex.startsWith("0x") ? params.keyProofHex.slice(2) : params.keyProofHex;
+  const validProof = await stellarVerifyKeyProof(
+    params.claimKeyAddress,
+    vaultId,
+    passphrase,
+    senderPub,
+    cleanProofHex,
+  );
+  if (!validProof) {
+    return { ok: false, error: "bad_key_proof" };
+  }
+
+  try {
+    const server = new rpc.Server(rpcUrl, { allowHttp: rpcUrl.startsWith("http://") });
+    const senderAccount = await server.getAccount(senderPub);
+    const contract = new Contract(vaultId);
+
+    const daysClamped = Math.max(1, Math.min(90, Math.floor(params.expiryDays || 30)));
+    const expirySec = BigInt(Math.floor(Date.now() / 1000) + daysClamped * 86400);
+    const claimKeyRawPub = StrKey.decodeEd25519PublicKey(params.claimKeyAddress);
+    const cleanNoteHex = params.sealedNoteHex.startsWith("0x") ? params.sealedNoteHex.slice(2) : params.sealedNoteHex;
+    const noteBuf = cleanNoteHex.length > 0 ? Buffer.from(cleanNoteHex, "hex") : Buffer.alloc(0);
+
+    const rawTx = new TransactionBuilder(senderAccount, {
+      fee: "100000",
+      networkPassphrase: passphrase,
+    })
+      .addOperation(
+        contract.call(
+          "create_gift",
+          nativeToScVal(new Address(senderPub), { type: "address" }),
+          nativeToScVal(new Address(stockAsset.contractId), { type: "address" }),
+          nativeToScVal(params.amountRaw, { type: "i128" }),
+          nativeToScVal(Buffer.from(claimKeyRawPub), { type: "bytes" }),
+          nativeToScVal(expirySec, { type: "u64" }),
+          nativeToScVal(noteBuf, { type: "bytes" }),
+          nativeToScVal(Buffer.from(cleanProofHex, "hex"), { type: "bytes" }),
+        ),
+      )
+      .setTimeout(30)
+      .build();
+
+    const preparedTx = await server.prepareTransaction(rawTx);
+    preparedTx.sign(operatorKp);
+    const sendRes = await server.sendTransaction(preparedTx);
+    if (sendRes.status === "ERROR") {
+      return { ok: false, error: "chain_failed" };
+    }
+
+    const pollRes = await server.pollTransaction(sendRes.hash, { attempts: 25 });
+    if (pollRes.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
+      return { ok: false, error: "chain_failed" };
+    }
+
+    let createdGiftId = 1n;
+    if (pollRes.returnValue) {
+      createdGiftId = BigInt(scValToNative(pollRes.returnValue));
+    } else {
+      const nextId = await readStellarNextGiftId({ vaultContractId: vaultId, rpcUrl, networkPassphrase: passphrase });
+      createdGiftId = nextId > 1n ? nextId - 1n : 1n;
+    }
+
+    return {
+      ok: true,
+      giftId: createdGiftId.toString(),
+      txHash: `0x${sendRes.hash}` as `0x${string}`,
+      sender: senderPub,
+      tokenContractId: stockAsset.contractId,
+    };
+  } catch {
+    return { ok: false, error: "chain_failed" };
+  }
 }

@@ -4,7 +4,10 @@ import "@/components/claim/zodNoEval";
 import { useConnectWallet, usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
 import { recoverPendingGift, sendGift, SendGiftError, wrapGift, type SendGiftDeps, type WrapGiftDeps } from "@viapp/core/src/client/send.js";
 import { buildLink, newStellarClaimKey, sealNote, stellarSignKeyProof } from "@viapp/core/src/gift.js";
-import { DEFAULT_STELLAR_VAULT_CONTRACT_ID } from "@viapp/core/src/client/stellar.js";
+import {
+  DEFAULT_STELLAR_TESTNET_OPERATOR_ADDRESS,
+  DEFAULT_STELLAR_VAULT_CONTRACT_ID,
+} from "@viapp/core/src/client/stellar.js";
 import { TESTNET_PASSPHRASE } from "@viapp/core/src/trade-stellar.js";
 import type { WalletSigner } from "@viapp/core/src/client/x402.js";
 import { MAX_GIFT_USD, MIN_GIFT_USD } from "@viapp/core/src/create.js";
@@ -189,19 +192,43 @@ export function SendPage() {
     setBannerLines(null);
     setRun({ phase: "sending", sheet: newSheet() });
 
-    // Native Stellar Wallet flow (Freighter or 1-Click Tester Stellar Wallet)
+    // Native Stellar Wallet flow (Freighter or 1-Click Tester Stellar Wallet) -> Live Soroban Testnet create_gift
     if (manualWallet !== null && String(manualWallet.address).startsWith("G")) {
       try {
         setRun((current) => advanceRun(current, { kind: "quote" }));
         const claimKey = newStellarClaimKey();
         const sealedNote = await sealNote(claimKey.privateKey, note);
-        await stellarSignKeyProof(
+        const keyProof = await stellarSignKeyProof(
           claimKey.privateKey,
           DEFAULT_STELLAR_VAULT_CONTRACT_ID,
           TESTNET_PASSPHRASE,
-          manualWallet.address,
+          DEFAULT_STELLAR_TESTNET_OPERATOR_ADDRESS,
         );
-        const giftId = 2n;
+        const amountRaw = BigInt(Math.max(100_000, Math.round(shares * 10_000_000)));
+        const res = await window.fetch("/api/gift/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol,
+            amountRaw: amountRaw.toString(),
+            claimKeyAddress: claimKey.address,
+            keyProofHex: keyProof,
+            sealedNoteHex: sealedNote,
+            expiryDays: days,
+          }),
+        });
+        const payload = (await res.json()) as
+          | { ok: true; giftId: string; txHash: `0x${string}` }
+          | { ok: false; error?: string };
+        if (!res.ok || !payload.ok) {
+          throw new SendGiftError(
+            "wallet_failed",
+            "Stellar Testnet transaction could not lock the stock in GiftVault.",
+            "Nothing was spent.",
+            null,
+          );
+        }
+        const giftId = BigInt(payload.giftId);
         const link = buildLink(window.location.origin, giftId, claimKey.privateKey, "stellar");
         addLink(sender, { giftId: giftId.toString(), link, symbol, createdAt: Date.now() });
         setRun((current) => {
@@ -214,7 +241,7 @@ export function SendPage() {
         const sendErr =
           err instanceof SendGiftError
             ? err
-            : new SendGiftError("wallet_failed", "Could not prepare Stellar gift link.", "Nothing was spent.", null);
+            : new SendGiftError("wallet_failed", "Could not create Stellar gift on-chain.", "Nothing was spent.", null);
         setRun((current) => stopRun(current, sendErr));
         return;
       }

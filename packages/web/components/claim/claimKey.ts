@@ -35,7 +35,7 @@ export function takeClaimKey(id: string): ClaimKeyResult {
       storageBlocked = true;
     }
   }
-  if (window.location.hash !== "") window.history.replaceState(null, "", `/g/${id}`);
+  if (window.location.hash !== "") window.history.replaceState(null, "", window.location.pathname);
 
   if (key === null) {
     let stored: string | null = null;

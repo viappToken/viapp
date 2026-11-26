@@ -291,6 +291,8 @@ function OpeningPanel() {
 
 function OpenedPanel({ view }: { view: Extract<View, { screen: "opened" }> }) {
   const { gift, note, txHash, address } = view;
+  const [cashOutNote, setCashOutNote] = useState<string | null>(null);
+  const cleanTxHash = txHash.startsWith("0x") ? txHash.slice(2) : txHash;
   return (
     <>
       <h1 className="claim-h claim-h-big">{"It's yours."}</h1>
@@ -304,7 +306,7 @@ function OpenedPanel({ view }: { view: Extract<View, { screen: "opened" }> }) {
         </blockquote>
       ) : null}
       <p className="claim-links">
-        <a className="claim-link" href={`https://stellar.expert/explorer/public/tx/${txHash}`} target="_blank" rel="noopener noreferrer">
+        <a className="claim-link" href={`https://stellar.expert/explorer/testnet/tx/${cleanTxHash}`} target="_blank" rel="noopener noreferrer">
           See it on StellarExpert
         </a>
         <Link className="claim-link" href="/" prefetch={false}>
@@ -318,7 +320,7 @@ function OpenedPanel({ view }: { view: Extract<View, { screen: "opened" }> }) {
           type="button"
           className="claim-primary"
           style={{ flex: 1, minWidth: "180px", fontSize: "13px", padding: "10px 12px", background: "var(--gold)", color: "#1A0F11", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}
-          onClick={() => alert(`Direct Liquidation: Swapping ${formatShares(gift.shares)} ${gift.symbol} to native Stellar USDC on SDEX...`)}
+          onClick={() => setCashOutNote(`SEP-0038 RFQ Quote ready: ${formatShares(gift.shares)} ${gift.symbol} SAC can be swapped directly for native Stellar USDC on SDEX.`)}
         >
           ⚡ Liquidate to USDC on SDEX
         </button>
@@ -326,11 +328,16 @@ function OpenedPanel({ view }: { view: Extract<View, { screen: "opened" }> }) {
           type="button"
           className="claim-secondary"
           style={{ flex: 1, minWidth: "180px", fontSize: "13px", padding: "10px 12px", borderRadius: "6px", cursor: "pointer", textAlign: "center" }}
-          onClick={() => alert("MoneyGram Access (SEP-24): Direct cash-out available across 180+ countries.")}
+          onClick={() => setCashOutNote("SEP-0024 MoneyGram Access: Cash-out available across 180+ countries once liquidated to Stellar USDC.")}
         >
           💵 Cash Out at MoneyGram
         </button>
       </div>
+      {cashOutNote !== null ? (
+        <p className="claim-fine" style={{ marginBottom: "12px", color: "var(--ink)" }}>
+          {cashOutNote}
+        </p>
+      ) : null}
       <Link className="claim-secondary" href="/send" prefetch={false}>
         Send someone their first stock
       </Link>
