@@ -4,6 +4,9 @@ import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
+import { DEFAULT_STELLAR_VAULT_CONTRACT_ID } from "@viapp/core/src/client/stellar.js";
+import { DEFAULT_STELLAR_RPC_URL } from "@viapp/core/src/stellar-rpc.js";
+import { TESTNET_PASSPHRASE } from "@viapp/core/src/trade-stellar.js";
 import { createBscClient, DEFAULT_BSC_RPC_URL } from "@viapp/core/src/chain.js";
 import { z } from "zod";
 import { BawError, createBawRunner } from "./baw.js";
@@ -11,6 +14,7 @@ import { GiftError, sendGift, type GiftDeps } from "./gift.js";
 import { loadPinned, PinnedConfigError } from "./pinned.js";
 import { listPendingKeys, resolvePendingGifts } from "./pending.js";
 import { preflight } from "./preflight.js";
+import { bumpVaultTtl, createTtlServer, monitorVaultTtl, TtlMaintenanceError } from "./maintenance.js";
 import { wrapSavedGift } from "./wrap.js";
 
 const USAGE = [
@@ -22,6 +26,7 @@ const USAGE = [
   "  gift <TICKER> --use-held <AMOUNT> [--note text] [--days n] [--yes]",
   "                                              Gift that many tokens of a stock you already hold, without buying.",
   "  wrap <GIFT_ID> [--yes]                     Pay the wrapping fee for a gift whose wrapping did not finish.",
+  "  maintain-ttl [--dry-run]                    Check the vault and open-gift TTLs; bump the vault when needed.",
 ].join("\n");
 
 const ROOT_ENV_FILE = fileURLToPath(new URL("../../../.env", import.meta.url));
@@ -31,6 +36,11 @@ const AGENT_SETTINGS = [
   "VIAPP_SERVER_ORIGIN",
   "VIAPP_PUBLIC_ORIGIN",
   "BSC_RPC_URL",
+  "STELLAR_RPC_URL",
+  "STELLAR_VAULT_CONTRACT_ID",
+  "STELLAR_NETWORK_PASSPHRASE",
+  "STELLAR_MAINTENANCE_SECRET",
+  "STELLAR_RELAYER_SECRET",
 ] as const;
 
 /**
@@ -181,18 +191,83 @@ async function wrap(positionals: string[], yes: boolean): Promise<number> {
   });
 }
 
+function ledgerThreshold(value: string | undefined, fallback: number, flag: string): number {
+  if (value === undefined) return fallback;
+  if (!/^[0-9]+$/.test(value)) throw new TtlMaintenanceError(`${flag} must be a non-negative whole number of ledgers.`);
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) throw new TtlMaintenanceError(`${flag} is too large.`);
+  return parsed;
+}
+
+async function maintainTtl(values: {
+  "dry-run"?: boolean;
+  threshold?: string;
+  "gift-threshold"?: string;
+}): Promise<number> {
+  const env = agentEnv();
+  const rpcUrl = env.STELLAR_RPC_URL ?? DEFAULT_STELLAR_RPC_URL;
+  const vaultContractId = env.STELLAR_VAULT_CONTRACT_ID ?? DEFAULT_STELLAR_VAULT_CONTRACT_ID;
+  const networkPassphrase = env.STELLAR_NETWORK_PASSPHRASE ?? TESTNET_PASSPHRASE;
+  const server = createTtlServer(rpcUrl);
+  const report = await monitorVaultTtl({
+    server,
+    vaultContractId,
+    networkPassphrase,
+    instanceThresholdLedgers: ledgerThreshold(values.threshold, 7 * 86400 / 5, "--threshold"),
+    giftThresholdLedgers: ledgerThreshold(values["gift-threshold"], 30 * 86400 / 5, "--gift-threshold"),
+  });
+
+  say(`GiftVault ${report.vaultContractId}`);
+  say(`Latest ledger: ${report.latestLedger}`);
+  say(
+    `Instance TTL: ${report.instance.remainingLedgers === null ? "missing" : `${report.instance.remainingLedgers} ledgers remaining`} ` +
+      `(threshold ${report.instance.thresholdLedgers}).`,
+  );
+  for (const gift of report.openGifts) {
+    const remaining = gift.remainingLedgers === null ? "missing" : `${gift.remainingLedgers} ledgers remaining`;
+    say(`Open gift #${gift.giftId}: ${remaining} (${gift.belowThreshold ? "below" : "above"} ${gift.thresholdLedgers}).`);
+  }
+  if (report.giftsNeedingExtension > 0) {
+    say(`${report.giftsNeedingExtension} open gift(s) need attention when their state is next touched.`);
+  }
+  if (!report.needsBump) {
+    say("Instance TTL is healthy; no transaction submitted.");
+    return 0;
+  }
+  if (values["dry-run"] === true) {
+    say("Instance TTL is below threshold; dry run left the network unchanged.");
+    return 0;
+  }
+  const sourceSecret = env.STELLAR_MAINTENANCE_SECRET ?? env.STELLAR_RELAYER_SECRET;
+  if (!sourceSecret) {
+    throw new TtlMaintenanceError("Set STELLAR_MAINTENANCE_SECRET (or STELLAR_RELAYER_SECRET) to submit the TTL bump.");
+  }
+  const { txHash } = await bumpVaultTtl({ server, sourceSecret, vaultContractId, networkPassphrase });
+  say(`GiftVault TTL extended. Transaction: ${txHash}`);
+  return 0;
+}
+
 async function main(argv: string[]): Promise<number> {
   const { positionals, values } = parseArgs({
     args: argv,
     allowPositionals: true,
     strict: true,
-    options: { note: { type: "string" }, days: { type: "string" }, yes: { type: "boolean" }, "use-held": { type: "string" } },
+    options: {
+      note: { type: "string" },
+      days: { type: "string" },
+      yes: { type: "boolean" },
+      "use-held": { type: "string" },
+      "dry-run": { type: "boolean" },
+      threshold: { type: "string" },
+      "gift-threshold": { type: "string" },
+    },
   });
   const [command, ...rest] = positionals;
   if (command === "status" && rest.length === 0) return status();
   if (command === "signin" && rest.length === 0) return signin();
   if (command === "gift") return gift(rest, values);
   if (command === "wrap") return wrap(rest, values.yes === true);
+  if (command === "maintain-ttl" && rest.length === 0) return maintainTtl(values);
   say(USAGE);
   return 1;
 }
@@ -202,7 +277,7 @@ try {
 } catch (err) {
   // Only the message is printed. Every message ViApp writes is plain English, and sendGift has
   // already replaced any error that carried the claim key (C12).
-  const known = err instanceof GiftError || err instanceof PinnedConfigError || err instanceof BawError;
+  const known = err instanceof GiftError || err instanceof PinnedConfigError || err instanceof BawError || err instanceof TtlMaintenanceError;
   console.error(known ? err.message : `ViApp stopped: ${err instanceof Error ? err.message : "unexpected error"}`);
   process.exitCode = 1;
 }
