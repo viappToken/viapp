@@ -22,7 +22,7 @@ While this proved that gifting stocks on Stellar is frictionless and gasless, **
 flowchart TD
     subgraph Current["Phase 1: 1:1 Pegged Stocks (Current Testnet)"]
         direction TB
-        P_Sender["Sender (Stellar USDC/XLM)"] --> P_Vault["Soroban GiftVault\nCDEDHFJ7..."]
+        P_Sender["Sender (Stellar USDC/XLM)"] --> P_Vault["Soroban GiftVault\nCDG2MIJE..."]
         P_Vault --> P_Peg["1:1 Pegged SAC (e.g. AAPL SAC)"]
         P_Bridge["ViApp Backend Bridge"] -.->|Cross-chain hop| P_Reserves["bStocks (BNB)\nCustodial Reserves"]
         P_Friend["Recipient Claim"] --> P_Peg
@@ -61,7 +61,7 @@ flowchart TD
 ## Strategic Roadmap Phases
 
 ### Phase 1: Testnet Protocol & 1:1 Pegged Foundation (Status: COMPLETE)
-* [x] **Soroban GiftVault Deployment:** Smart contract deployed and verified on Stellar Testnet (`CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M`).
+* [x] **Soroban GiftVault Deployment:** Smart contract deployed and verified on Stellar Testnet (`CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4`).
 * [x] **Zero-Knowledge Gift Link Flow:** Client-side Ed25519 claim keys embedded in URL fragments (`#claimSecret`) for zero-custody link distribution.
 * [x] **Gasless Sponsored Claims:** ViApp relayer sponsors all claim transaction fees on Soroban, enabling recipients with zero balance to claim shares.
 * [x] **1:1 Pegged Stock Catalog:** Catalog of 9 top US stocks and ETFs (AAPL, NVDA, TSLA, MSFT, AMZN, GOOGL, META, SPY, QQQ) pegged 1:1 against bStocks.

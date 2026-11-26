@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ViApp Community Pre-Flight Verification Script
- * Validates repository hygiene, contributor guidelines, and test suites
+ * Validates repository hygiene, contributor guidelines, and Soroban contract test suites
  * before submitting community Pull Requests.
  */
 
@@ -32,9 +32,9 @@ passed &&= check("CONTRIBUTING.md exists and contains Contributor Ladder", () =>
   if (!content.includes("bounty:100")) throw new Error("Missing Wave points definition");
 });
 
-passed &&= check("CONTRIBUTORS.md exists and has active contributors", () => {
+passed &&= check("CONTRIBUTORS.md exists and documents maintainers & open-source attribution", () => {
   const content = fs.readFileSync(path.join(rootDir, "CONTRIBUTORS.md"), "utf8");
-  if (!content.includes("Core Team & Community Maintainers")) throw new Error("Missing community table");
+  if (!content.includes("Core Team & Maintainers")) throw new Error("Missing maintainer table");
 });
 
 passed &&= check("SECURITY.md exists and specifies responsible disclosure SLA", () => {
@@ -42,7 +42,7 @@ passed &&= check("SECURITY.md exists and specifies responsible disclosure SLA", 
   if (!content.includes("Reporting a Vulnerability")) throw new Error("Missing vulnerability guide");
 });
 
-passed &&= check("Wave 10 bounty issue template is configured", () => {
+passed &&= check("Wave bounty issue template is configured", () => {
   const templatePath = path.join(rootDir, ".github/ISSUE_TEMPLATE/wave_bounty.yml");
   if (!fs.existsSync(templatePath)) throw new Error("Missing wave_bounty.yml template");
 });

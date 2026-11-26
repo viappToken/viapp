@@ -11,7 +11,7 @@ pub enum State {
 }
 
 #[contracttype]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Gift {
     pub token: Address,
     pub sender: Address,
@@ -63,3 +63,27 @@ pub struct GiftRefunded {
     pub sender: Address,
 }
 
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenListed {
+    #[topic]
+    pub token: Address,
+    pub listed: bool,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RelayerUpdated {
+    #[topic]
+    pub new_relayer: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SurplusRescued {
+    #[topic]
+    pub token: Address,
+    #[topic]
+    pub to: Address,
+    pub amount: i128,
+}

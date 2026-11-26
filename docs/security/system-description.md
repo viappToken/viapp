@@ -18,7 +18,7 @@ Under current deployment, tokenized stocks are backed 1:1 by institutional reser
    - `POST /api/wrap`: Handles the 5-cent gift wrap fee payment and attestation.
    - `GET /api/gift/:id`: Public on-chain status of a gift (token, amount, expiry, state, sealed note) read directly from the Stellar Soroban RPC.
 3. **Relayer Service**: A server-held Stellar keypair funded with a pool of XLM. It wraps claim transactions in Stellar fee-bump envelopes, guaranteeing seamless onboarding for new users without requiring them to hold crypto or XLM reserves.
-4. **Soroban Smart Contract (`viapp-gift-vault`)**: Deployed on Stellar (`CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M`), written in Rust with the Soroban SDK.
+4. **Soroban Smart Contract (`viapp-gift-vault`)**: Deployed on Stellar (`CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4`), written in Rust with the Soroban SDK.
    - `create_gift(sender, token, amount, claim_key, expiry, sealed_note, key_proof)`: Locks tokenized stock in the vault, binds it to the ephemeral claim public key, and sets TTL/expiration.
    - `claim(gift_id, recipient, signature)`: Validates cryptographic signature from the claim key over `(gift_id, recipient)`, verifies sanctions/geo-blocking compliance, and transfers stock to `recipient`.
    - `refund(gift_id)`: Unlocks and returns expired, unclaimed stock to the original sender.

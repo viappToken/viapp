@@ -6,8 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Grain } from "@/components/hero/Grain";
 import { VMark } from "@/components/hero/VMark";
-import { VAULT } from "@/lib/chain";
-import { addressUrl, shortHex, sourceUrl } from "@/lib/proof";
+import { addressUrl, shortHex, sourceUrl, STELLAR_VAULT_ID } from "@/lib/proof";
 import "./sections.css";
 
 // The root layout loads Fraunces upright only, so the italic cut is loaded here, as the hero does.
@@ -26,8 +25,8 @@ const RISE_STAGGER_SECONDS = 0.08;
 type Credit = { role: string; name: ReactNode };
 
 const vaultName = (
-  <a className="draw-link" href={addressUrl(VAULT)} target="_blank" rel="noopener noreferrer">
-    {`GiftVault, ${shortHex(VAULT)}`}
+  <a className="draw-link" href={addressUrl(STELLAR_VAULT_ID)} target="_blank" rel="noopener noreferrer">
+    {`GiftVault, ${shortHex(STELLAR_VAULT_ID)}`}
   </a>
 );
 
@@ -94,10 +93,10 @@ export function Credits() {
           <a className="draw-link" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
             GitHub
           </a>
-          <a className="draw-link" href={`https://stellar.expert/explorer/public/contract/${VAULT}`} target="_blank" rel="noopener noreferrer">
+          <a className="draw-link" href={sourceUrl(STELLAR_VAULT_ID)} target="_blank" rel="noopener noreferrer">
             Contract on StellarExpert
           </a>
-          <a className="draw-link" href={sourceUrl(VAULT)} target="_blank" rel="noopener noreferrer">
+          <a className="draw-link" href={`https://lab.stellar.org/r/testnet/contract/${STELLAR_VAULT_ID}`} target="_blank" rel="noopener noreferrer">
             Verified source
           </a>
         </nav>

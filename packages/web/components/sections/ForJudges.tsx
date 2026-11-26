@@ -40,19 +40,23 @@ type TicketPhase = "idle" | "claiming" | "done";
 
 type GiftNumber = { status: "loading" } | { status: "ready"; value: string } | { status: "failed" };
 
-/** The vault's nextGiftId, read live, so the number printed on the ticket is the one the next gift will get. */
+/** The Soroban vault's next_gift_id, read live via /api/stats. */
 function useNextGiftNumber(): GiftNumber {
   const [state, setState] = useState<GiftNumber>({ status: "loading" });
   useEffect(() => {
     let cancelled = false;
-    publicClient.readContract({ address: VAULT, abi: giftVaultAbi, functionName: "nextGiftId" }).then(
-      (next) => {
-        if (!cancelled) setState({ status: "ready", value: next.toString() });
-      },
-      () => {
+    fetch("/api/stats", { headers: { accept: "application/json" } })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
+      .then((data: { ok?: boolean; nextGiftId?: number }) => {
+        if (!cancelled && data?.ok && typeof data.nextGiftId === "number") {
+          setState({ status: "ready", value: String(data.nextGiftId) });
+        } else if (!cancelled) {
+          setState({ status: "failed" });
+        }
+      })
+      .catch(() => {
         if (!cancelled) setState({ status: "failed" });
-      },
-    );
+      });
     return () => {
       cancelled = true;
     };

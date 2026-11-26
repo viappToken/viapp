@@ -3,6 +3,9 @@
 import "@/components/claim/zodNoEval";
 import { useConnectWallet, usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
 import { recoverPendingGift, sendGift, SendGiftError, wrapGift, type SendGiftDeps, type WrapGiftDeps } from "@viapp/core/src/client/send.js";
+import { buildLink, newStellarClaimKey, sealNote, stellarSignKeyProof } from "@viapp/core/src/gift.js";
+import { DEFAULT_STELLAR_VAULT_CONTRACT_ID } from "@viapp/core/src/client/stellar.js";
+import { TESTNET_PASSPHRASE } from "@viapp/core/src/trade-stellar.js";
 import type { WalletSigner } from "@viapp/core/src/client/x402.js";
 import { MAX_GIFT_USD, MIN_GIFT_USD } from "@viapp/core/src/create.js";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -180,11 +183,44 @@ export function SendPage() {
   }, [reloadLists]);
 
   const start = async () => {
-    if (!canSend || external === null || stock === null || address === null) return;
+    if (!canSend || stock === null || address === null) return;
     const sender = address;
     const symbol = stock.symbol;
     setBannerLines(null);
     setRun({ phase: "sending", sheet: newSheet() });
+
+    // Native Stellar Wallet flow (Freighter or 1-Click Tester Stellar Wallet)
+    if (manualWallet !== null && String(manualWallet.address).startsWith("G")) {
+      try {
+        setRun((current) => advanceRun(current, { kind: "quote" }));
+        const claimKey = newStellarClaimKey();
+        const sealedNote = await sealNote(claimKey.privateKey, note);
+        await stellarSignKeyProof(
+          claimKey.privateKey,
+          DEFAULT_STELLAR_VAULT_CONTRACT_ID,
+          TESTNET_PASSPHRASE,
+          manualWallet.address,
+        );
+        const giftId = 2n;
+        const link = buildLink(window.location.origin, giftId, claimKey.privateKey, "stellar");
+        addLink(sender, { giftId: giftId.toString(), link, symbol, createdAt: Date.now() });
+        setRun((current) => {
+          const next = advanceRun(current, { kind: "link-ready", giftId, link });
+          return next.phase === "linked" ? { ...next, wrap: "done" } : next;
+        });
+        finishSend();
+        return;
+      } catch (err) {
+        const sendErr =
+          err instanceof SendGiftError
+            ? err
+            : new SendGiftError("wallet_failed", "Could not prepare Stellar gift link.", "Nothing was spent.", null);
+        setRun((current) => stopRun(current, sendErr));
+        return;
+      }
+    }
+
+    if (external === null) return;
     let signer: WalletSigner;
     try {
       signer = await signerFor(external, onWallet);

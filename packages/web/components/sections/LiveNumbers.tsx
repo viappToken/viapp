@@ -1,53 +1,46 @@
 "use client";
 
-import { giftVaultAbi } from "@viapp/core/src/generated/giftVaultAbi.js";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Grain } from "@/components/hero/Grain";
 import { useMediaQuery } from "@/components/hero/useMediaQuery";
-import { publicClient, VAULT } from "@/lib/chain";
-import { addressUrl, shortHex, sourceUrl } from "@/lib/proof";
+import { addressUrl, shortHex, sourceUrl, STELLAR_VAULT_ID } from "@/lib/proof";
 import "./sections.css";
 
-// The order of GiftVault.State in GiftVault.sol: None, Open, Claimed, Refunded.
 const STATE_OPEN = 1;
 const STATE_CLAIMED = 2;
 const STATE_REFUNDED = 3;
-// Reading every gift ever made would grow without limit, so only the newest ones are checked.
-const NEWEST_GIFTS = 200;
 const LATEST_ROWS = 6;
 const COUNT_UP_MS = 1200;
 const VISIBLE_FRACTION = 0.4;
-const STOCKS_TIMEOUT_MS = 20_000;
-// One more try after a failure, because the server's first boot can take a few seconds.
-const STOCKS_RETRY_MS = 5_000;
+const STATS_TIMEOUT_MS = 20_000;
 
-type LatestGift = { id: number; token: string; state: number };
+type LatestGift = { id: number; token: string; symbol?: string; state: number };
 
 type Counts = { made: number; opened: number; waiting: number; latest: LatestGift[] };
 
 type CountsState = { status: "loading" } | { status: "ready"; counts: Counts } | { status: "failed" };
 
-/** nextGiftId, then getGift for the newest ids in one multicall. Refunded gifts count in "made" and the latest list only. */
+/** Reads live on-chain gift statistics from the deployed Soroban GiftVault contract via /api/stats. */
 async function readCounts(): Promise<Counts> {
-  const next = await publicClient.readContract({ address: VAULT, abi: giftVaultAbi, functionName: "nextGiftId" });
-  const made = Number(next) - 1;
-  const oldest = Math.max(1, made - NEWEST_GIFTS + 1);
-  const ids: bigint[] = [];
-  for (let id = made; id >= oldest; id -= 1) ids.push(BigInt(id));
-  if (ids.length === 0) return { made, opened: 0, waiting: 0, latest: [] };
-  const gifts = await publicClient.multicall({
-    contracts: ids.map((id) => ({ address: VAULT, abi: giftVaultAbi, functionName: "getGift", args: [id] }) as const),
-    allowFailure: false,
+  const res = await fetch("/api/stats", {
+    signal: AbortSignal.timeout(STATS_TIMEOUT_MS),
+    headers: { accept: "application/json" },
   });
-  let opened = 0;
-  let waiting = 0;
-  for (const gift of gifts) {
-    if (gift.state === STATE_CLAIMED) opened += 1;
-    else if (gift.state === STATE_OPEN) waiting += 1;
-  }
-  // The ids run newest first, so the first few gifts are the latest ones.
-  const latest = gifts.slice(0, LATEST_ROWS).map((gift, index) => ({ id: Number(ids[index]), token: gift.token, state: gift.state }));
-  return { made, opened, waiting, latest };
+  if (!res.ok) throw new Error("Failed to read Stellar vault stats");
+  const data = (await res.json()) as {
+    ok?: boolean;
+    made?: number;
+    opened?: number;
+    waiting?: number;
+    latest?: LatestGift[];
+  };
+  if (!data || data.ok !== true) throw new Error("Invalid stats response");
+  return {
+    made: Number(data.made ?? 0),
+    opened: Number(data.opened ?? 0),
+    waiting: Number(data.waiting ?? 0),
+    latest: Array.isArray(data.latest) ? data.latest.slice(0, LATEST_ROWS) : [],
+  };
 }
 
 function useCounts(): { state: CountsState; reload: () => void } {
@@ -76,62 +69,8 @@ function useCounts(): { state: CountsState; reload: () => void } {
   return { state, reload };
 }
 
-type Symbols = ReadonlyMap<string, string>;
-
-// Token address (lower case) to stock symbol. The symbol is shown as plain text only.
-function parseSymbols(body: unknown): Symbols | null {
-  const list = typeof body === "object" && body !== null ? (body as { stocks?: unknown }).stocks : null;
-  if (!Array.isArray(list)) return null;
-  const found = new Map<string, string>();
-  for (const row of list as unknown[]) {
-    if (typeof row !== "object" || row === null) continue;
-    const { address, symbol } = row as Record<string, unknown>;
-    if (typeof address === "string" && typeof symbol === "string") found.set(address.toLowerCase(), symbol.slice(0, 16));
-  }
-  return found;
-}
-
-async function fetchSymbols(): Promise<Symbols | null> {
-  try {
-    const response = await fetch("/api/stocks", { signal: AbortSignal.timeout(STOCKS_TIMEOUT_MS), headers: { accept: "application/json" } });
-    return response.ok ? parseSymbols(await response.json()) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Null while loading. When /api/stocks cannot be reached it is an empty map, so rows show a shortened token address instead. */
-function useSymbols(): Symbols | null {
-  const [symbols, setSymbols] = useState<Symbols | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let retry = 0;
-    const settle = (found: Symbols | null) => {
-      if (!cancelled) setSymbols(found ?? new Map());
-    };
-    void fetchSymbols().then((found) => {
-      if (found !== null) {
-        settle(found);
-        return;
-      }
-      retry = window.setTimeout(() => void fetchSymbols().then(settle), STOCKS_RETRY_MS);
-    });
-    return () => {
-      cancelled = true;
-      window.clearTimeout(retry);
-    };
-  }, []);
-
-  return symbols;
-}
-
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
-/**
- * One big number. The digits are written straight into the element on every animation frame, so
- * React does not re-render while it counts. Under reduced motion the final value is there at once.
- */
 function Figure({ value, label, play, reduced }: { value: number; label: string; play: boolean; reduced: boolean }) {
   const digits = useRef<HTMLSpanElement>(null);
 
@@ -182,8 +121,7 @@ const CHIPS: Readonly<Record<number, { text: string; tone: string }>> = {
   [STATE_REFUNDED]: { text: "TAKEN BACK", tone: "taken-back" },
 };
 
-/** The newest gifts straight from the same chain read as the numbers, newest first. */
-function LatestGifts({ state, symbols, play, reduced }: { state: CountsState; symbols: Symbols | null; play: boolean; reduced: boolean }) {
+function LatestGifts({ state, play, reduced }: { state: CountsState; play: boolean; reduced: boolean }) {
   const gifts = state.status === "ready" ? state.counts.latest.filter((gift) => CHIPS[gift.state] !== undefined) : null;
   if (gifts !== null && gifts.length === 0) return null;
 
@@ -192,14 +130,14 @@ function LatestGifts({ state, symbols, play, reduced }: { state: CountsState; sy
       <p className="sec-label" id="latest-label">
         LATEST GIFTS
       </p>
-      <ol className="latest-list" aria-labelledby="latest-label" aria-busy={gifts === null || symbols === null}>
-        {gifts !== null && symbols !== null
+      <ol className="latest-list" aria-labelledby="latest-label" aria-busy={gifts === null}>
+        {gifts !== null
           ? gifts.map((gift, index) => {
               const chip = CHIPS[gift.state];
               return (
                 <li className="latest-row latest-row-live" key={gift.id} style={{ "--i": index } as CSSProperties}>
                   <span className="latest-id">#{gift.id}</span>
-                  <span className="latest-symbol">{symbols.get(gift.token.toLowerCase()) ?? shortHex(gift.token)}</span>
+                  <span className="latest-symbol">{gift.symbol ?? shortHex(gift.token)}</span>
                   <span className={`latest-chip latest-chip-${chip?.tone}`}>{chip?.text}</span>
                 </li>
               );
@@ -217,7 +155,6 @@ function LatestGifts({ state, symbols, play, reduced }: { state: CountsState; sy
 export function LiveNumbers() {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { state, reload } = useCounts();
-  const symbols = useSymbols();
   const band = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -247,7 +184,7 @@ export function LiveNumbers() {
         <div className="live-body">
           {state.status === "failed" ? (
             <div className="live-failed">
-              <p className="live-failed-text">Could not reach Stellar just now.</p>
+              <p className="live-failed-text">Could not reach Stellar Soroban RPC just now.</p>
               <button type="button" className="gold-link live-retry" onClick={reload}>
                 Try again
               </button>
@@ -269,17 +206,17 @@ export function LiveNumbers() {
                   </>
                 )}
               </div>
-              <LatestGifts state={state} symbols={symbols} play={visible} reduced={reduced} />
+              <LatestGifts state={state} play={visible} reduced={reduced} />
             </>
           )}
         </div>
         <p className="live-source">
-          Read live from the viapp vault{" "}
-          <a className="draw-link" href={addressUrl(VAULT)} target="_blank" rel="noopener noreferrer">
-            {shortHex(VAULT)}
+          Read live from the viapp Soroban vault{" "}
+          <a className="draw-link" href={addressUrl(STELLAR_VAULT_ID)} target="_blank" rel="noopener noreferrer">
+            {shortHex(STELLAR_VAULT_ID)}
           </a>{" "}
           ·{" "}
-          <a className="draw-link" href={`https://stellar.expert/explorer/public/contract/${VAULT}`} target="_blank" rel="noopener noreferrer">
+          <a className="draw-link" href={sourceUrl(STELLAR_VAULT_ID)} target="_blank" rel="noopener noreferrer">
             verified on StellarExpert
           </a>
         </p>

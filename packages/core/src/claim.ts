@@ -14,6 +14,7 @@ import {
 import { StoreError, type KvStore } from "./store.js";
 import { readGift, readSenderIsCompliant, type VaultErrorName } from "./vault.js";
 import { isWrapped } from "./wrap.js";
+import { executeStellarRelayerClaim } from "./stellar-rpc.js";
 
 /** Every error a claim request can get back. Short, fixed, and never built from upstream text (C19). */
 export type ClaimErrorCode =
@@ -224,12 +225,19 @@ export async function handleClaim(
     );
     if (!eligible.ok) return fail(eligible.reason);
 
-    const stellarTxHash = `0x${Buffer.from(recipient + fields.giftId).toString("hex").padEnd(64, "0").slice(0, 64)}` as Hex;
+    const claimRes = await executeStellarRelayerClaim({
+      giftId,
+      recipient,
+      signature: fields.signature,
+    });
+    if (!claimRes.ok) {
+      return fail(claimRes.error);
+    }
     return {
       status: 200,
       body: {
         ok: true,
-        txHash: stellarTxHash,
+        txHash: claimRes.txHash,
         reused: false,
       },
     };

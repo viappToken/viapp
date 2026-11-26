@@ -53,3 +53,4 @@ Valid, previously unknown security vulnerabilities qualify for community rewards
 ## 📜 Safe Harbor
 
 Security researchers acting in good faith to test ViApp without degrading user funds, denying service, or publishing exploits prior to remediation will be granted safe harbor and acknowledged in [`CONTRIBUTORS.md`](./CONTRIBUTORS.md).
+

@@ -1,0 +1,9 @@
+{
+  "network": "mainnet",
+  "networkPassphrase": "Public Global Stellar Network ; September 2015",
+  "rpcUrl": "https://soroban-rpc.mainnet.stellar.gateway.fm",
+  "horizonUrl": "https://horizon.stellar.org",
+  "status": "planned_milestone_3",
+  "contractId": "",
+  "wasmHash": "14e4c5a834f2bd49719a030108c7b9140c6cdeca89859a0f84e58ecc004127b5"
+}

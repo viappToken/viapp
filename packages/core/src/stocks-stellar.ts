@@ -25,13 +25,15 @@ export type StellarStock = {
   backingContract?: string;
 };
 
-// Known testnet/mainnet issuers for tokenized stocks and base currencies on Stellar
-export const STELLAR_TESTNET_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+// ViApp dedicated Testnet tokenized stock issuer account (deployed & verified on Stellar Testnet)
+export const STELLAR_TESTNET_ISSUER = "GAJZNVL4IOXRII77S22CHDW7E2UWICAMWLFMX22B3YW2PVBQ7RLNNNFN";
+// Circle's canonical Testnet and Mainnet USDC issuers
+export const STELLAR_TESTNET_USDC_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
 export const STELLAR_MAINNET_USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
-export const STELLAR_MAINNET_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+export const STELLAR_MAINNET_ISSUER = "GAJZNVL4IOXRII77S22CHDW7E2UWICAMWLFMX22B3YW2PVBQ7RLNNNFN";
 
 export const STELLAR_STOCKS_CATALOG: Omit<StellarStock, "contractId" | "address" | "symbol">[] = [
-  // --- 9 Core Tokenized Stocks Backed by BSC bStocks ---
+  // --- 9 Core Tokenized Stocks Issued as Stellar Asset Contracts (SACs) ---
   {
     chain: "stellar",
     code: "AAPL",
@@ -164,7 +166,7 @@ export const STELLAR_STOCKS_CATALOG: Omit<StellarStock, "contractId" | "address"
     chain: "stellar",
     code: "USDC",
     name: "USD Coin",
-    issuer: STELLAR_TESTNET_ISSUER,
+    issuer: STELLAR_TESTNET_USDC_ISSUER,
     decimals: 7,
     uiMultiplier: "10000000",
     priceUsd: "1.00",
@@ -186,11 +188,6 @@ export const STELLAR_STOCKS_CATALOG: Omit<StellarStock, "contractId" | "address"
   },
 ];
 
-/**
- * Returns listed tokenized stocks on Stellar, complete with SAC contract IDs for the given passphrase.
- * Filters out currency assets (USDC, XLM) so only giftable stocks are returned.
- * Optionally filters by venue ("bnb" | "stellar").
- */
 export function getStellarStocks(networkPassphrase: string, venue?: StockVenue): StellarStock[] {
   let stocks = STELLAR_STOCKS_CATALOG.filter(
     (item) => item.code !== "USDC" && item.code !== "XLM",
@@ -215,10 +212,6 @@ export function getStellarStocks(networkPassphrase: string, venue?: StockVenue):
   });
 }
 
-/**
- * Returns all assets in the catalog (including settlement currencies: USDC, XLM)
- * complete with SAC contract IDs for the given passphrase.
- */
 export function getAllStellarCatalogAssets(networkPassphrase: string): StellarStock[] {
   return STELLAR_STOCKS_CATALOG.map((item) => {
     const asset = item.code === "XLM" ? Asset.native() : new Asset(item.code, item.issuer);
@@ -237,29 +230,19 @@ export function getAllStellarCatalogAssets(networkPassphrase: string): StellarSt
   });
 }
 
-/**
- * Returns all 9 BSC bStocks on Stellar.
- */
 export function getBscStocks(networkPassphrase: string): StellarStock[] {
   return getStellarStocks(networkPassphrase, "bnb");
 }
 
-/**
- * Looks up a single Stellar stock or settlement asset by its symbol/code/address.
- * Normalizes case, prefixes (b), separators (-, _, ., /), and checks both stocks and currencies.
- * Fully supports bStock alias resolution (e.g. "AAPLB", "bAAPL", "METAB", "0x...").
- */
 export function findStellarStock(code: string, networkPassphrase: string): StellarStock | undefined {
   if (!code || typeof code !== "string") return undefined;
   const raw = code.trim();
   if (raw.length === 0) return undefined;
 
-  // Clean trailing pair info (e.g. "NVDA/USDC" -> "NVDA", "AAPL-XLM" -> "AAPL")
   const strippedPair = raw.replace(/\/(USDC|XLM)$/i, "").replace(/-(USDC|XLM)$/i, "");
   const normalized = strippedPair.toUpperCase();
   const allAssets = getAllStellarCatalogAssets(networkPassphrase);
 
-  // 1. Direct case-insensitive match on code, symbol, address, contractId, or backingSymbol
   const direct = allAssets.find(
     (s) =>
       s.code.toUpperCase() === normalized ||
@@ -270,7 +253,6 @@ export function findStellarStock(code: string, networkPassphrase: string): Stell
   );
   if (direct) return direct;
 
-  // 2. Normalized alphanumeric (removes hyphens, underscores, dots, e.g. "AAPL-B" -> "AAPLB")
   const cleanAlnum = normalized.replace(/[^A-Z0-9]/g, "");
   const alnumMatch = allAssets.find(
     (s) =>
@@ -279,7 +261,6 @@ export function findStellarStock(code: string, networkPassphrase: string): Stell
   );
   if (alnumMatch) return alnumMatch;
 
-  // 3. Handle prefix notation: "bNVDA" -> "NVDA" or "bAAPL" -> "AAPL"
   if (/^B[A-Z0-9]+$/i.test(cleanAlnum)) {
     const rest = cleanAlnum.slice(1);
     const prefixMatch = allAssets.find(
@@ -290,7 +271,6 @@ export function findStellarStock(code: string, networkPassphrase: string): Stell
     if (prefixMatch) return prefixMatch;
   }
 
-  // 4. Try stripped suffix base (e.g. "NVDAB" -> "NVDA", "AAPLB" -> "AAPL")
   const base = cleanAlnum.replace(/B$/, "");
   if (base.length > 0) {
     const baseMatch = allAssets.find((s) => {

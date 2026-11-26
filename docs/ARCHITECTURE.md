@@ -25,7 +25,7 @@ flowchart TD
     end
 
     subgraph OnChain["Stellar Network (Soroban)"]
-        Vault["GiftVault Smart Contract\nCDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M"]
+        Vault["GiftVault Smart Contract\nCDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4"]
         SAC["Stellar Asset Contracts\n(Native XLM, USDC, Pegged Stocks)"]
         Ledger["Stellar Ledger\n(State Storage + TTL Extensions)"]
     end
@@ -49,16 +49,20 @@ flowchart TD
 
 ## 2. Deployed Soroban Smart Contract & Live Testnet Evidence
 
-The core smart contract `viapp-gift-vault` is deployed, initialized, and verified on Stellar Testnet:
+The core smart contract `viapp-gift-vault` is deployed, initialized via atomic `__constructor`, and verified on Stellar Testnet:
 
-* **Contract ID:** [`CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M`](https://stellar.expert/explorer/testnet/contract/CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M)
-* **WASM Hash:** `89cfaedb8f5c3933e47dbb6f5eed3f182a31ed972738f60ef61efbd6b2f85266`
+* **Contract ID:** [`CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4`](https://stellar.expert/explorer/testnet/contract/CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4)
+* **WASM Hash:** `14e4c5a834f2bd49719a030108c7b9140c6cdeca89859a0f84e58ecc004127b5`
 * **Network:** Stellar Testnet (`Test SDF Network ; September 2015`)
-* **Deploy Transaction:** [`8675102f...`](https://stellar.expert/explorer/testnet/tx/8675102f1054b1322c73c378ad28f42ad1ab094dfcea556c4266e62db48b4be5)
-* **Initialization Transaction:** [`2593bb74...`](https://stellar.expert/explorer/testnet/tx/2593bb74aefcb81c78b2a7d8518cffe28cbb71a05655dc314280f69fb9b72010)
-* **Initial Listed Token:** Native XLM SAC (`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`)
-* **Live Testnet Gift Creation Tx:** [`ad2a84c5...`](https://stellar.expert/explorer/testnet/tx/ad2a84c5d2dbda6d4c43c9abe7f45916c5e9a107aa3e3bdaf9f8b05d1164ae94) *(Created Gift #1, locked 1 XLM, registered Ed25519 claim proof, emitted `GiftCreated` event)*
-* **Live Testnet Gift Claim Tx:** [`21d69188...`](https://stellar.expert/explorer/testnet/tx/21d69188fc46dbee51e4c1f5c138f3dd0654ef8b0af8fd8ebe6b88bc3b28eaff) *(Verified signature from URL fragment secret on-chain, settled tokens to recipient `GCB5TX...`, emitted `GiftClaimed` event)*
+* **ViApp Stock Issuer (`viapp-issuer`):** [`GAJZNVL4IOXRII77S22CHDW7E2UWICAMWLFMX22B3YW2PVBQ7RLNNNFN`](https://stellar.expert/explorer/testnet/account/GAJZNVL4IOXRII77S22CHDW7E2UWICAMWLFMX22B3YW2PVBQ7RLNNNFN)
+* **ViApp Gasless Relayer (`viapp-relayer`):** [`GANCS3FFF5TPPCBCNO4MFTMEIMDK4BO2LJYTEBG57F3DNX7JRYJ5WTKH`](https://stellar.expert/explorer/testnet/account/GANCS3FFF5TPPCBCNO4MFTMEIMDK4BO2LJYTEBG57F3DNX7JRYJ5WTKH)
+* **WASM Upload Transaction:** [`9311be00...`](https://stellar.expert/explorer/testnet/tx/9311be00c2f195ea2b669be8b4da07337da9e0c27a97173165bcb3a50467ff6d)
+* **Deploy + Atomic `__constructor` Tx:** [`91a51bd5...`](https://stellar.expert/explorer/testnet/tx/91a51bd598a3f77e3ca50cd0ba5cd96c8b23d53e6174cb444137ab88761e85d2)
+* **Dynamic Token Listing (`set_token_listed` QQQ) Tx:** [`a93c5a04...`](https://stellar.expert/explorer/testnet/tx/a93c5a042e1762acd6f1571b001b988071fd87dca76aaa3651eb3869984a859e)
+* **Live Testnet Gift #1 (`1.0 NVDA` SAC) Creation Tx:** [`a45ef1cc...`](https://stellar.expert/explorer/testnet/tx/a45ef1cc24c138ccfd2b9e55645247482a4621004816535ec819e45ef902f5cc) *(Created Gift #1, locked 1.0 NVDA SAC, verified Ed25519 claim proof, emitted `GiftCreated` event)*
+* **Live Testnet Gift #1 (`1.0 NVDA` SAC) Gasless Claim Tx:** [`abdefd9b...`](https://stellar.expert/explorer/testnet/tx/abdefd9b50f8575178869779022ab3e1171046eefcc460595e1b92dc2c93b109) *(Submitted by `viapp-relayer`, verified Ed25519 signature on-chain, settled 1.0 NVDA SAC to recipient `GDKT5IW7...`, emitted `GiftClaimed` event)*
+* **Live Testnet Gift #2 (`0.5 AAPL` SAC, Open) Creation Tx:** [`5b8b7809...`](https://stellar.expert/explorer/testnet/tx/5b8b7809ae715c90e2259c21b46d2c90982ab7a1ddd0437e7a97df4119dfe251)
+* **Live Testnet Gift #3 (`0.7 NVDA` SAC, Open) Creation Tx:** [`1b6661dc...`](https://stellar.expert/explorer/testnet/tx/1b6661dcccc7dd4e76de910354c384f18ae19f89f21a5b8f5ebdfa85d0af9bfc)
 
 ---
 
@@ -139,15 +143,15 @@ ViApp automatically routes all stock purchases to 1:1 institutional reserves via
 
 | Ticker | Company / Asset | Stellar SAC Address (Soroban) | Backing Venue | Backing Contract Address | Peg Ratio |
 | :---: | :--- | :--- | :---: | :--- | :---: |
-| **$AAPL** | Apple Inc. | `CCAPPOAZYAHIJVWFQFTL3AUPCVRADODVIFTXQZ2GMAYMYPLUPA3PRMYB` | BNB Chain (bStock) | `0x4dd8cb5f44e3f421be0d58852da0e28f32242186` | 1:1 |
-| **$NVDA** | NVIDIA Corp | `CCU5ABICR2MGWDRYS66DHG2XFFVEAH3L24RW7YVJG2V64JZNAKDFN273` | BNB Chain (bStock) | `0x02fca66c1d1afb4e2a7884261eb00f63598a7436` | 1:1 |
-| **$TSLA** | Tesla, Inc. | `CCB43KY52JEQQGWPG7EAMJQAIQN3JGRCB32BWLEIQYZXMKGC54OGGIMV` | BNB Chain (bStock) | `0x12bb94481d81fbe3237e1ba77a83d3170e59a6d8` | 1:1 |
-| **$MSFT** | Microsoft Corp | `CBRV67QJ2JEQQGWPG7EAMJQAIQN3JGRCB32BWLEIQYZXMKGC54OGGIMV` | BNB Chain (bStock) | `0x8929e083cbe9a296e8bc371c6fa611fe28114fcf` | 1:1 |
-| **$AMZN** | Amazon.com Inc. | `CA6Z342J2JEQQGWPG7EAMJQAIQN3JGRCB32BWLEIQYZXMKGC54OGGIMV` | BNB Chain (bStock) | `0xa8417c8cf15239a5ec13e9a7e6b010f3c5b557fb` | 1:1 |
-| **$GOOGL** | Alphabet Inc. | `CBVTR42J2JEQQGWPG7EAMJQAIQN3JGRCB32BWLEIQYZXMKGC54OGGIMV` | BNB Chain (bStock) | `0x539591e6005cbbce4ebcc47cfdc3500d8ce20c6a` | 1:1 |
-| **$META** | Meta Platforms | `CBPZVV47KJMR3WFSQQQQDPIZ65PXC32PKC3Y2PSW2VOMZFKRZR3AFTWK` | BNB Chain (bStock) | `0x7425889FE94F9d693E8daefE88BCCed6AcFEf4c0` | 1:1 |
-| **$SPY** | S&P 500 ETF | `CD7P742J2JEQQGWPG7EAMJQAIQN3JGRCB32BWLEIQYZXMKGC54OGGIMV` | BNB Chain (bStock) | `0x98f260340b3cb1c95116df14e8ee1c183bbd3257` | 1:1 |
-| **$QQQ** | Invesco QQQ Trust | `CDLWOXHR5DHZJ3MYCSM6SIDNYTVYIGHS7CU2A6YPEMKR57ECNF533W23` | BNB Chain (bStock) | `0x205812CdBed920aFf76C6580abD681a46D11efc7` | 1:1 |
+| **$AAPL** | Apple Inc. | `CBUEWQFAQJUMIU7PU6U64Q35NCGF752BB7JHYKMEUZ6OA7767S66EYJB` | BNB Chain (bStock) | `0x4dd8cb5f44e3f421be0d58852da0e28f32242186` | 1:1 |
+| **$NVDA** | NVIDIA Corp | `CAX6GMJ7R4SKDEPHDFPJJMGYXNBWNFUOLDZZIQUV3PMRIMDRGUEY3RZV` | BNB Chain (bStock) | `0x02fca66c1d1afb4e2a7884261eb00f63598a7436` | 1:1 |
+| **$TSLA** | Tesla, Inc. | `CCX7WIJYXP2HXPMKKAOLYSMTVTLFYZDRBC5OR3O4S2QGBGUWN5NZQUVU` | BNB Chain (bStock) | `0x12bb94481d81fbe3237e1ba77a83d3170e59a6d8` | 1:1 |
+| **$MSFT** | Microsoft Corp | `CA566SBZVF5XPOHA5IBIDNSKJ7OBD5UT7V5LZZUSSQCXJ3BQ7RXNMVAU` | BNB Chain (bStock) | `0x8929e083cbe9a296e8bc371c6fa611fe28114fcf` | 1:1 |
+| **$AMZN** | Amazon.com Inc. | `CCSCABC5NOE7VSZY7FJOOQOGVIHIHCXW2G5ETERS3J2CPAMF3DKFLAOL` | BNB Chain (bStock) | `0xa8417c8cf15239a5ec13e9a7e6b010f3c5b557fb` | 1:1 |
+| **$GOOGL** | Alphabet Inc. | `CDLGAWB22W2PSU6UBTIC2O2XOX7AXQQXEM6V4TGIZWW6OH6VA6NAHXJD` | BNB Chain (bStock) | `0x539591e6005cbbce4ebcc47cfdc3500d8ce20c6a` | 1:1 |
+| **$META** | Meta Platforms | `CABP7JTR5F7VAX73NIWFAMJVN3HDAOG6TALS62UEUQHY3ZSJ3T23VKWC` | BNB Chain (bStock) | `0x7425889FE94F9d693E8daefE88BCCed6AcFEf4c0` | 1:1 |
+| **$SPY** | S&P 500 ETF | `CCD3SEF2BGN4FSSQLXACT2V2I7QWVA2HW54HJCWJMKHKJ7ZYSXXCSH5Z` | BNB Chain (bStock) | `0x98f260340b3cb1c95116df14e8ee1c183bbd3257` | 1:1 |
+| **$QQQ** | Invesco QQQ Trust | `CCON7JI5MMA2A55E4K6VCAVQV4GXP37BLPBRIKENFPSSP33ADTF7C7Q7` | BNB Chain (bStock) | `0x205812CdBed920aFf76C6580abD681a46D11efc7` | 1:1 |
 
 ### 4.4 Roadmap Architecture: Native Stellar Tokenization & Direct On-Chain Liquidation (Beyond Pegged Assets)
 
@@ -160,7 +164,7 @@ flowchart LR
     end
 
     subgraph Escrow["2. Gift Escrow & Claim"]
-        NativeStock -->|Locked in Escrow| Vault["Soroban GiftVault\nCDEDHFJ7..."]
+        NativeStock -->|Locked in Escrow| Vault["Soroban GiftVault\nCDG2MIJE..."]
         Vault -->|Gasless Relayer Claim| Recipient["Gift Recipient Wallet"]
     end
 

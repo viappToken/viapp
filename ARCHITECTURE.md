@@ -30,8 +30,8 @@ flowchart TD
     end
 
     subgraph OnChain["Stellar Network (Soroban)"]
-        Vault["GiftVault Smart Contract\nCDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M"]
-        SAC["Stellar Asset Contracts\n(Native XLM, USDC, Stocks)"]
+        Vault["GiftVault Smart Contract\nCDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4"]
+        SAC["Stellar Asset Contracts\n(Native XLM, USDC, 9 Stocks)"]
         SDEX["Stellar SDEX & Soroban AMM\n(Direct On-Chain Liquidation)"]
     end
 
@@ -52,8 +52,8 @@ flowchart TD
 
 ## 2. Deployed Soroban Smart Contract & Live Testnet Evidence
 
-- **Contract ID:** [`CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M`](https://stellar.expert/explorer/testnet/contract/CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M)
-- **WASM Hash:** `89cfaedb8f5c3933e47dbb6f5eed3f182a31ed972738f60ef61efbd6b2f85266`
-- **Deploy Transaction:** [`8675102f...4be5`](https://stellar.expert/explorer/testnet/tx/8675102f1054b1322c73c378ad28f42ad1ab094dfcea556c4266e62db48b4be5)
-- **Live Gift Creation Tx:** [`ad2a84c5...ae94`](https://stellar.expert/explorer/testnet/tx/ad2a84c5d2dbda6d4c43c9abe7f45916c5e9a107aa3e3bdaf9f8b05d1164ae94)
-- **Live Gasless Claim Tx:** [`21d69188...eaff`](https://stellar.expert/explorer/testnet/tx/21d69188fc46dbee51e4c1f5c138f3dd0654ef8b0af8fd8ebe6b88bc3b28eaff)
+- **Contract ID:** [`CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4`](https://stellar.expert/explorer/testnet/contract/CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4)
+- **WASM Hash (`wasm32v1-none`):** `14e4c5a834f2bd49719a030108c7b9140c6cdeca89859a0f84e58ecc004127b5`
+- **Deploy Transaction:** [`91a51bd5...85d2`](https://stellar.expert/explorer/testnet/tx/91a51bd598a3f77e3ca50cd0ba5cd96c8b23d53e6174cb444137ab88761e85d2)
+- **Live Gift Creation Tx (`1.0 NVDA`):** [`a45ef1cc...f5cc`](https://stellar.expert/explorer/testnet/tx/a45ef1cc24c138ccfd2b9e55645247482a4621004816535ec819e45ef902f5cc)
+- **Live Gasless Claim Tx (`1.0 NVDA`):** [`abdefd9b...b109`](https://stellar.expert/explorer/testnet/tx/abdefd9b50f8575178869779022ab3e1171046eefcc460595e1b92dc2c93b109)

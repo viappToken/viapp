@@ -35,11 +35,12 @@ These transactions verify the protocol flow on Stellar.
 
 | Step | What happened | Transaction |
 |---|---|---|
-| Stock Bridge & Custody | Backing stock liquidity secured behind the scenes | [6a16...a9f3](https://stellar.expert/explorer/testnet/tx/6a1623c52a0403c6aba600d8cf35fbc77a8830f614138152066c7a7d906aa9f3) |
-| Gift 1 locked | The share goes into the Soroban vault under a one-time key | [c01b...c087](https://stellar.expert/explorer/testnet/tx/c01b783813eb3cde47888012996e09031b98cc8d49408e7521a694b218e2c087) |
-| Gift 1 claimed | viapp's relayer claims it into a brand-new wallet and pays network fees | [6a13...78e8](https://stellar.expert/explorer/testnet/tx/6a13e2e8f14630a8a4777bf7bae7befa21154fe64ba0e64d58a7ccdca71978e8) |
-| Gift 2 wrapped | x402 wrapping fee paid on Stellar | [8ec1...38d6](https://stellar.expert/explorer/testnet/tx/8ec1e0666350aa500bbf2f7d36b1cd97bb8dfb2e9fd5ba328b75b899a36c38d6) |
-| Gift 2 claimed | Claimed with no fees paid by the friend | [660e...e28e](https://stellar.expert/explorer/testnet/tx/660e8ebcc983db623db05e87fa7e0c7f4583ff208f7fdb884864d86c0825e28e) |
+| Stock SACs Minted | All 9 stock SACs issued & funded on Stellar Testnet | [fd96...f39a](https://stellar.expert/explorer/testnet/tx/fd96a64efd56f2005299ec92b90cfbfb7af8f21fd91fc5e091d1286374d4f39a) |
+| GiftVault Deployed | Soroban GiftVault deployed with atomic CAP-0058 constructor | [91a5...85d2](https://stellar.expert/explorer/testnet/tx/91a51bd598a3f77e3ca50cd0ba5cd96c8b23d53e6174cb444137ab88761e85d2) |
+| Gift 1 locked (1.0 NVDA) | 1.0 NVDA SAC locked in the Soroban vault under a one-time Ed25519 key | [a45e...f5cc](https://stellar.expert/explorer/testnet/tx/a45ef1cc24c138ccfd2b9e55645247482a4621004816535ec819e45ef902f5cc) |
+| Gift 1 claimed (1.0 NVDA) | viapp's relayer claims 1.0 NVDA into recipient wallet and pays network fees | [abde...b109](https://stellar.expert/explorer/testnet/tx/abdefd9b50f8575178869779022ab3e1171046eefcc460595e1b92dc2c93b109) |
+| Gift 2 locked (0.5 AAPL) | 0.5 AAPL SAC locked in vault for live judge claim verification | [5b8b...e251](https://stellar.expert/explorer/testnet/tx/5b8b7809ae715c90e2259c21b46d2c90982ab7a1ddd0437e7a97df4119dfe251) |
+| Gift 3 locked (0.7 NVDA) | 0.7 NVDA SAC locked in vault for live judge claim verification | [1b66...fbfc](https://stellar.expert/explorer/testnet/tx/1b6661dcccc7dd4e76de910354c384f18ae19f89f21a5b8f5ebdfa85d0af9bfc) |
 
 ### How long a claim takes
 

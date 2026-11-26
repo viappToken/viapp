@@ -1,21 +1,18 @@
 /**
- * viapp Backend Bridge & 1:1 Pegged Stock Engine
+ * viapp Reserve Attestation & 1:1 Pegged Stock Router (Testnet MVP Simulation / Mainnet Reserve Adapter)
  *
- * Senders pay in USDC or XLM on Stellar.
- * Behind the scenes, the bridge fulfillment engine acquires the underlying
- * tokenized stocks on BNB Chain (bStocks via Binance Web3), custodying the
- * backing asset and minting/locking a 1:1 pegged synthetic stock token into
- * the Soroban GiftVault on Stellar.
- *
- * For the UI and end-user, 100% of the experience is native to Stellar.
+ * Maps Stellar Asset Contract (SAC) tokenized stocks issued by STELLAR_TESTNET_ISSUER
+ * to their 1:1 reference reserve configurations and computes deterministic SHA-256
+ * reserve attestation digests.
  */
 
-import { STELLAR_STOCKS_CATALOG, type StellarStock } from "./stocks-stellar.js";
+import crypto from "node:crypto";
+import { STELLAR_STOCKS_CATALOG, STELLAR_TESTNET_ISSUER } from "./stocks-stellar.js";
 
 export type BackingVenue = "bnb";
 
 /**
- * Tradable Allowlist on BNB Smart Chain (Chain 56) bStocks
+ * Reference allowlist of underlying bStocks contracts (Chain 56)
  */
 export const BSC_BSTOCKS_ALLOWLIST = {
   AAPLB: {
@@ -77,18 +74,15 @@ export const BSC_BSTOCKS_ALLOWLIST = {
 export type PeggedStockConfig = {
   code: string;
   name: string;
-  stellarAsset: string; // e.g. "NVDA:GBBD47..."
+  stellarAsset: string;
   backingVenue: BackingVenue;
-  backingContract: string; // BSC bStock contract
+  backingContract: string;
   backingSymbol: string;
   pegRatio: "1:1";
 };
 
-const STELLAR_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+const STELLAR_ISSUER = STELLAR_TESTNET_ISSUER;
 
-/**
- * Active venue health state for BNB bStocks backing.
- */
 const venueHealthState: Record<BackingVenue, boolean> = {
   bnb: true,
 };
@@ -105,12 +99,7 @@ export function resetVenueHealth(): void {
   venueHealthState.bnb = true;
 }
 
-/**
- * Mapping of Stellar stocks to their behind-the-scenes BSC bStocks backing venue and contract.
- * Fully supports all 9 core tokenized stocks and their bStock aliases.
- */
 export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
-  // --- 9 Canonical Core Stocks ---
   AAPL: {
     code: "AAPL",
     name: "Apple Inc.",
@@ -192,12 +181,10 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
     backingSymbol: "QQQB",
     pegRatio: "1:1",
   },
-
-  // --- 9 bStock Aliases (BNB Smart Chain) ---
   AAPLB: {
     code: "AAPLB",
     name: "Apple Inc. (bStock)",
-    stellarAsset: `AAPLB:${STELLAR_ISSUER}`,
+    stellarAsset: `AAPL:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.AAPLB.address,
     backingSymbol: "AAPLB",
@@ -206,7 +193,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   NVDAB: {
     code: "NVDAB",
     name: "NVIDIA Corp (bStock)",
-    stellarAsset: `NVDAB:${STELLAR_ISSUER}`,
+    stellarAsset: `NVDA:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.NVDAB.address,
     backingSymbol: "NVDAB",
@@ -215,7 +202,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   TSLAB: {
     code: "TSLAB",
     name: "Tesla, Inc. (bStock)",
-    stellarAsset: `TSLAB:${STELLAR_ISSUER}`,
+    stellarAsset: `TSLA:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.TSLAB.address,
     backingSymbol: "TSLAB",
@@ -224,7 +211,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   MSFTB: {
     code: "MSFTB",
     name: "Microsoft Corp (bStock)",
-    stellarAsset: `MSFTB:${STELLAR_ISSUER}`,
+    stellarAsset: `MSFT:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.MSFTB.address,
     backingSymbol: "MSFTB",
@@ -233,7 +220,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   AMZNB: {
     code: "AMZNB",
     name: "Amazon.com Inc. (bStock)",
-    stellarAsset: `AMZNB:${STELLAR_ISSUER}`,
+    stellarAsset: `AMZN:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.AMZNB.address,
     backingSymbol: "AMZNB",
@@ -242,7 +229,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   GOOGLB: {
     code: "GOOGLB",
     name: "Alphabet Inc. (bStock)",
-    stellarAsset: `GOOGLB:${STELLAR_ISSUER}`,
+    stellarAsset: `GOOGL:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.GOOGLB.address,
     backingSymbol: "GOOGLB",
@@ -251,7 +238,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   METAB: {
     code: "METAB",
     name: "Meta Platforms (bStock)",
-    stellarAsset: `METAB:${STELLAR_ISSUER}`,
+    stellarAsset: `META:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.METAB.address,
     backingSymbol: "METAB",
@@ -260,7 +247,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   SPYB: {
     code: "SPYB",
     name: "SPDR S&P 500 ETF (bStock)",
-    stellarAsset: `SPYB:${STELLAR_ISSUER}`,
+    stellarAsset: `SPY:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.SPYB.address,
     backingSymbol: "SPYB",
@@ -269,7 +256,7 @@ export const PEGGED_STOCK_MAP: Record<string, PeggedStockConfig> = {
   QQQB: {
     code: "QQQB",
     name: "Invesco QQQ Trust (bStock)",
-    stellarAsset: `QQQB:${STELLAR_ISSUER}`,
+    stellarAsset: `QQQ:${STELLAR_ISSUER}`,
     backingVenue: "bnb",
     backingContract: BSC_BSTOCKS_ALLOWLIST.QQQB.address,
     backingSymbol: "QQQB",
@@ -283,7 +270,7 @@ export type BridgeOrderParams = {
   paymentAsset: "USDC" | "XLM";
   usdAmount: number;
   giftId: bigint;
-  claimKeyHash: string; // Ed25519 hash on Stellar
+  claimKeyHash: string;
 };
 
 export type BridgeFulfillmentResult = {
@@ -312,32 +299,24 @@ export type ResilientBridgeOptions = {
   failoverReason?: string;
 };
 
-/**
- * Validates that a stock has an active 1:1 backing configuration.
- * Case-insensitive lookup supporting standard tickers and bStocks.
- */
 export function getPeggedConfig(stockCode: string): PeggedStockConfig {
   if (!stockCode || typeof stockCode !== "string") {
     throw new Error(`Unsupported stock for Stellar pegging: ${stockCode}`);
   }
   const raw = stockCode.trim();
 
-  // 1. Direct match by exact key or uppercase key
   if (PEGGED_STOCK_MAP[raw]) return PEGGED_STOCK_MAP[raw]!;
   const normalized = raw.toUpperCase();
   if (PEGGED_STOCK_MAP[normalized]) return PEGGED_STOCK_MAP[normalized]!;
 
-  // 2. Direct lookup by contract address (case-insensitive)
   const byAddress = Object.values(PEGGED_STOCK_MAP).find(
     (cfg) => cfg.backingContract.toLowerCase() === raw.toLowerCase(),
   );
   if (byAddress) return byAddress;
 
-  // 3. Clean separators (e.g. "AAPL-B", "NVDA/USDC")
   const cleanAlnum = normalized.replace(/\/(USDC|XLM)$/i, "").replace(/[^A-Z0-9]/g, "");
   if (PEGGED_STOCK_MAP[cleanAlnum]) return PEGGED_STOCK_MAP[cleanAlnum]!;
 
-  // 4. Handle prefix notation (e.g. "bNVDA" -> "NVDAB")
   if (/^B[A-Z0-9]+$/i.test(cleanAlnum)) {
     const rest = cleanAlnum.slice(1);
     const suffixNotation = `${rest}B`;
@@ -345,7 +324,6 @@ export function getPeggedConfig(stockCode: string): PeggedStockConfig {
     if (PEGGED_STOCK_MAP[rest]) return PEGGED_STOCK_MAP[rest]!;
   }
 
-  // 5. Fallback to stripped suffix base
   const base = cleanAlnum.replace(/B$/, "");
   if (base.length > 0 && PEGGED_STOCK_MAP[base]) {
     return PEGGED_STOCK_MAP[base]!;
@@ -354,29 +332,21 @@ export function getPeggedConfig(stockCode: string): PeggedStockConfig {
   throw new Error(`Unsupported stock for Stellar pegging: ${stockCode}`);
 }
 
-/**
- * Calculates share quantity from USD amount and stock price.
- */
 export function calculatePeggedShares(stockCode: string, usdAmount: number): { shares: string; sharesBaseUnits: bigint } {
   const normalized = stockCode.toUpperCase();
   const catalogEntry = STELLAR_STOCKS_CATALOG.find((s) => s.code.toUpperCase() === normalized)
     ?? STELLAR_STOCKS_CATALOG.find((s) => s.code.toUpperCase().replace(/B$/, "") === normalized.replace(/B$/, ""))
     ?? STELLAR_STOCKS_CATALOG.find((s) => s.backingSymbol?.toUpperCase() === normalized);
-  
+
   const price = catalogEntry?.priceUsd ? parseFloat(catalogEntry.priceUsd) : 100.0;
   const rawShares = usdAmount / price;
-  // 7 decimal places for Stellar asset precision
   const formatted = rawShares.toFixed(7);
   const baseUnits = BigInt(Math.floor(rawShares * 10_000_000));
   return { shares: formatted, sharesBaseUnits: baseUnits };
 }
 
 /**
- * Auto-select bStocks bridge fulfillment engine:
- * 1. Checks health of bStocks backing venue on BNB Smart Chain.
- * 2. Automatically routes directly to bStocks on BSC (venue: "bnb").
- * 3. Mints and locks the 1:1 pegged asset in Soroban GiftVault on Stellar.
- * 4. Returns verifiable reserve proof with backing details.
+ * Computes cryptographic SHA-256 reserve routing attestation for Testnet MVP simulation.
  */
 export async function executeResilientBridgePurchase(
   params: BridgeOrderParams,
@@ -385,12 +355,10 @@ export async function executeResilientBridgePurchase(
   const baseConfig = getPeggedConfig(params.stockCode);
   const { shares } = calculatePeggedShares(params.stockCode, params.usdAmount);
 
-  // Compute payment amount needed on Stellar
   const paymentAmount = params.paymentAsset === "USDC"
     ? params.usdAmount.toFixed(2)
-    : (params.usdAmount / 0.12).toFixed(4); // approx XLM price ~$0.12
+    : (params.usdAmount / 0.12).toFixed(4);
 
-  // Check health and force-fail options
   const isHealthy = !options?.forceFailPrimary && getVenueHealth("bnb");
 
   if (!isHealthy) {
@@ -405,9 +373,18 @@ export async function executeResilientBridgePurchase(
   const selectedContract = (BSC_BSTOCKS_ALLOWLIST as Record<string, any>)[selectedSymbol]?.address
     ?? baseConfig.backingContract;
 
-  const executionHash = `0x${Buffer.from(`backing:${selectedVenue}:${selectedSymbol}:${params.giftId}`).toString("hex").padStart(64, "0").slice(0, 64)}`;
+  // Cryptographic SHA-256 digests over order parameters (never raw ASCII hex padding)
+  const executionDigest = crypto
+    .createHash("sha256")
+    .update(`viapp:reserve:${selectedVenue}:${selectedContract}:${params.giftId}:${shares}:${params.claimKeyHash}`)
+    .digest("hex");
+  const stellarDigest = crypto
+    .createHash("sha256")
+    .update(`viapp:stellar:sac:${baseConfig.stellarAsset}:${params.senderStellarAddress}:${params.giftId}:${params.claimKeyHash}`)
+    .digest("hex");
+
+  const executionHash = `0x${executionDigest}`;
   const attestationId = `attest:peg:1to1:${baseConfig.code}:${params.giftId.toString()}:${selectedVenue}`;
-  const stellarTx = Buffer.from(`stellar:vault:${params.giftId}`).toString("hex").padEnd(64, "0").slice(0, 64);
 
   return {
     ok: true,
@@ -416,7 +393,7 @@ export async function executeResilientBridgePurchase(
     shares,
     paymentAsset: params.paymentAsset,
     paymentAmount,
-    stellarVaultTxHash: stellarTx,
+    stellarVaultTxHash: stellarDigest,
     backingDetails: {
       venue: selectedVenue,
       contract: selectedContract,
@@ -430,9 +407,6 @@ export async function executeResilientBridgePurchase(
   };
 }
 
-/**
- * Standard entrypoint for executing bridge purchases, automatically routing to BSC bStocks.
- */
 export async function executeBridgePurchase(
   params: BridgeOrderParams,
   options?: ResilientBridgeOptions
@@ -440,10 +414,6 @@ export async function executeBridgePurchase(
   return executeResilientBridgePurchase(params, options);
 }
 
-/**
- * Queries reserve proof ensuring 1:1 backing exists for a gift on Stellar.
- * Solely attests to reserveType: "bStocks_Binance_Custody".
- */
 export function verify1to1PegProof(
   giftId: string,
   stockCode: string,
@@ -466,9 +436,6 @@ export function verify1to1PegProof(
   };
 }
 
-/**
- * Returns all tradable bStocks on BNB Smart Chain (chain 56).
- */
 export function getBscStockAllowlist() {
   return Object.values(BSC_BSTOCKS_ALLOWLIST);
 }

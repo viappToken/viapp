@@ -1,9 +1,12 @@
 import { getAddress, isAddress, zeroAddress, type Address, type Hex, type PublicClient } from "viem";
 import { z } from "zod";
+import { StrKey } from "@stellar/stellar-sdk";
 import { assertChain, CHAIN_ID } from "../chain.js";
 import type { ClaimErrorCode } from "../claim.js";
-import { claimKeyMatches, LinkError, openNote, parseClaimKey, parseGiftId, parseLink, signClaim } from "../gift.js";
+import { claimKeyMatches, LinkError, openNote, parseClaimKey, parseGiftId, parseLink, signClaim, stellarSignClaim } from "../gift.js";
 import { confirmClaim } from "../relayer.js";
+import { DEFAULT_STELLAR_VAULT_CONTRACT_ID } from "./stellar.js";
+import { TESTNET_PASSPHRASE } from "../trade-stellar.js";
 import { callViapp, errorCodeOf, viappErrorText, type ViappApi, type ViappReply } from "./send.js";
 
 export type ClaimFlowErrorCode =
@@ -76,7 +79,11 @@ export function readLinkFromLocation(href: string): { giftId: bigint; claimKey: 
   }
 }
 
-const addressText = z.custom<Address>((v) => typeof v === "string" && isAddress(v));
+const addressOrStellarText = z.custom<Address>((v) => {
+  if (typeof v !== "string") return false;
+  if (isAddress(v)) return true;
+  return StrKey.isValidEd25519PublicKey(v) || StrKey.isValidContract(v);
+});
 const uintText = z.string().regex(/^(0|[1-9][0-9]{0,77})$/);
 // Server-clipped token text (status.ts): at most 64 characters, shown as plain text only (C14).
 const plainText = z.string().max(64);
@@ -84,21 +91,22 @@ const giftStatusSchema = z.strictObject({
   ok: z.literal(true),
   giftId: uintText,
   state: z.enum(["Open", "Claimed", "Refunded"]),
-  token: addressText,
+  token: addressOrStellarText,
   symbol: plainText,
   name: plainText,
   decimals: z.number().int().min(0).max(77),
   amountRaw: uintText,
   shares: z.string().max(160).regex(/^[0-9]+(\.[0-9]+)?$/),
   expiry: uintText,
-  claimKey: addressText,
+  claimKey: addressOrStellarText,
   sealedNote: z.string().max(2 + 2 * 512).regex(/^0x([0-9a-fA-F]{2})*$/),
+  sender: z.string().optional(),
   senderCompliant: z.boolean(),
 });
 
-function parsedLink(giftId: bigint, claimKey: Hex): { id: bigint; key: Hex } {
+function parsedLink(giftId: bigint, claimKey: Hex | string): { id: bigint; key: Hex } {
   try {
-    return { id: parseGiftId(typeof giftId === "bigint" ? giftId.toString() : ""), key: parseClaimKey(claimKey) };
+    return { id: parseGiftId(typeof giftId === "bigint" ? giftId.toString() : ""), key: parseClaimKey(claimKey) as Hex };
   } catch {
     throw new ClaimFlowError("link_damaged", DAMAGED);
   }
@@ -145,7 +153,7 @@ export async function loadGift(deps: ViappApi, giftId: bigint, claimKey: Hex): P
     gift: {
       giftId: id,
       state: g.state,
-      token: getAddress(g.token),
+      token: isAddress(g.token) ? getAddress(g.token) : (g.token as Address),
       symbol: g.symbol,
       name: g.name,
       decimals: g.decimals,
@@ -228,6 +236,44 @@ export async function claimGift(
 ): Promise<{ claimed: true; txHash: Hex }> {
   if (input?.declaration !== true) throw new ClaimFlowError("bad_input", CLAIM_TEXT.no_declaration);
   const { id, key } = parsedLink(input.giftId, input.claimKey);
+  const isStellarClaim = String(key).startsWith("S") && StrKey.isValidEd25519PublicKey(String(input.recipient));
+
+  if (isStellarClaim) {
+    const stellarRecipient = String(input.recipient);
+    let sigHex: string;
+    try {
+      sigHex = await stellarSignClaim(
+        String(key),
+        DEFAULT_STELLAR_VAULT_CONTRACT_ID,
+        TESTNET_PASSPHRASE,
+        id,
+        stellarRecipient,
+      );
+    } catch (err) {
+      throw err instanceof LinkError && err.kind === "invalid"
+        ? new ClaimFlowError("link_invalid", "This gift link is not valid. Ask the sender to copy the whole link again.")
+        : new ClaimFlowError("link_damaged", DAMAGED);
+    }
+    let reply: ViappReply;
+    try {
+      reply = await callViapp(deps, "POST", "/api/claim", {
+        json: { giftId: id.toString(), recipient: stellarRecipient, signature: `0x${sigHex}`, declaration: true, chain: "stellar" },
+        timeoutMs: CLAIM_TIMEOUT_MS,
+      });
+    } catch {
+      throw new ClaimFlowError("server_unreachable", UNREACHABLE);
+    }
+    if (reply.status !== 200) {
+      const code = errorCodeOf(reply.body);
+      throw new ClaimFlowError("refused", viappErrorText(code, CLAIM_TEXT), code);
+    }
+    const submitted = submittedSchema.safeParse(reply.body);
+    if (!submitted.success) {
+      throw new ClaimFlowError("unexpected", "ViApp's server answered with something this page does not expect. Try again in a minute.");
+    }
+    return { claimed: true, txHash: submitted.data.txHash.toLowerCase() as Hex };
+  }
+
   let recipient: Address;
   let vault: Address;
   try {

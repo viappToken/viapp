@@ -13,10 +13,10 @@ import {
 
 /**
  * Deployed and initialized Soroban GiftVault contract on Stellar Testnet.
- * Explorer: https://stellar.expert/explorer/testnet/contract/CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M
+ * Explorer: https://stellar.expert/explorer/testnet/contract/CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4
  */
 export const DEFAULT_STELLAR_VAULT_CONTRACT_ID =
-  "CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M";
+  "CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4";
 
 export interface CreateGiftParams {
   sender: string;

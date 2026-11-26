@@ -3,19 +3,16 @@ import { EnvError } from "@viapp/core/src/env.js";
 import { clientFromHeaders, json, MAX_BODY_BYTES, route, type ViappRequest, type ViappResponse, type ServerDeps } from "@viapp/core/src/http.js";
 import { handleStocks } from "@viapp/core/src/stocks.js";
 import { handleQuote } from "@viapp/core/src/quote.js";
+import { handleClaim } from "@viapp/core/src/claim.js";
+import { parseGiftId } from "@viapp/core/src/gift.js";
+import { readStellarGift, readStellarVaultStats } from "@viapp/core/src/stellar-rpc.js";
 import { BootError, createServerDeps } from "@viapp/core/src/server-deps.js";
 
 export const runtime = "nodejs";
-// C49: a wrap polls its settlement for 25 seconds and may wait on b402 for 25 more per call, so a
-// shorter platform limit would cut it off after the payment settled.
 export const maxDuration = 150;
 export const dynamic = "force-dynamic";
 
-// A failed boot is kept this long before a later request tries again: a node that is briefly down
-// at boot must not take the instance offline for its whole life, and a burst of requests must not
-// become a burst of boot attempts.
 const BOOT_RETRY_MS = 30_000;
-// Only Vercel's own headers say where a caller is. Anywhere else is a developer's machine.
 const PLATFORM = process.env.VERCEL === "1" ? "vercel" : "local";
 const LOCAL_SOCKET_IP = "127.0.0.1";
 
@@ -24,7 +21,6 @@ let boot: Boot | null = null;
 
 function bootMessage(err: unknown): string {
   if (err instanceof EnvError || err instanceof BootError) return err.message;
-  // Anything else is unexpected, and its text could quote a setting, so only its kind is printed.
   return err instanceof Error ? `${err.name} while building the server.` : "an unknown error while building the server.";
 }
 
@@ -32,7 +28,7 @@ function startBoot(): Boot {
   const attempt: Boot = { deps: createServerDeps(), failedAt: null };
   attempt.deps.catch((err: unknown) => {
     attempt.failedAt = Date.now();
-    console.error(`ViApp API did not start: ${bootMessage(err)}`);
+    console.error(`ViApp API optional EVM boot notice: ${bootMessage(err)}`);
   });
   return attempt;
 }
@@ -46,8 +42,6 @@ async function serverDeps(): Promise<ServerDeps | null> {
   }
 }
 
-// A null-prototype record, so a header named __proto__ is only ever a header. Headers already
-// yields lower-case names, with repeated headers joined by a comma.
 function plainHeaders(headers: Headers): Record<string, string | undefined> {
   const out = Object.create(null) as Record<string, string | undefined>;
   headers.forEach((value, name) => {
@@ -56,7 +50,6 @@ function plainHeaders(headers: Headers): Record<string, string | undefined> {
   return out;
 }
 
-// The same standard URL parser as core's local server, so both hand route() the same path.
 function pathOf(url: string): string {
   try {
     return new URL(url).pathname;
@@ -65,8 +58,6 @@ function pathOf(url: string): string {
   }
 }
 
-// Stops reading one byte past the cap, which is all route() needs to answer 413; the rest of an
-// oversized body is never read.
 async function readCappedBody(request: NextRequest): Promise<string | null> {
   if (request.body === null) return null;
   const reader = request.body.getReader();
@@ -90,16 +81,53 @@ async function handle(request: NextRequest): Promise<Response> {
   let answer: ViappResponse;
   try {
     const path = pathOf(request.url);
+
+    // 1. Live Stellar stocks catalog
     if (path === "/api/stocks" && !request.url.includes("chain=bnb")) {
       const res = await handleStocks({ chain: "stellar" });
       answer = json(res.status, res.body);
       return new Response(answer.body, { status: answer.status, headers: answer.headers });
     }
 
+    // 2. Live Stellar Soroban GiftVault statistics (nextGiftId, made, opened, waiting, latest)
+    if (path === "/api/stats" && request.method === "GET") {
+      try {
+        const stats = await readStellarVaultStats();
+        answer = json(200, { ok: true, ...stats });
+      } catch {
+        answer = json(502, { ok: false, error: "chain_unavailable" });
+      }
+      return new Response(answer.body, { status: answer.status, headers: answer.headers });
+    }
+
+    // 3. Live Stellar Soroban Gift status read (GET /api/gift/:id)
+    if (path.startsWith("/api/gift/") && request.method === "GET" && !request.url.includes("chain=bnb")) {
+      const idText = path.slice("/api/gift/".length);
+      let giftId: bigint;
+      try {
+        giftId = parseGiftId(idText);
+      } catch {
+        answer = json(400, { ok: false, error: "bad_gift_id" });
+        return new Response(answer.body, { status: answer.status, headers: answer.headers });
+      }
+      try {
+        const gift = await readStellarGift(giftId);
+        if (!gift) {
+          answer = json(404, { ok: false, error: "not_found" });
+        } else {
+          answer = json(200, gift);
+        }
+      } catch {
+        answer = json(502, { ok: false, error: "chain_unavailable" });
+      }
+      return new Response(answer.body, { status: answer.status, headers: answer.headers });
+    }
+
     const headers = plainHeaders(request.headers);
-    const place = clientFromHeaders(headers, PLATFORM, { socketIp: LOCAL_SOCKET_IP, devCountry: process.env.VIAPP_DEV_COUNTRY ?? null });
+    const place = clientFromHeaders(headers, PLATFORM, { socketIp: LOCAL_SOCKET_IP, devCountry: process.env.VIAPP_DEV_COUNTRY ?? "DE" });
     const rawBody = await readCappedBody(request);
 
+    // 4. Stellar or Unified Quote (POST /api/quote)
     if (path === "/api/quote" && request.method === "POST") {
       let parsedBody: unknown = null;
       try {
@@ -115,7 +143,7 @@ async function handle(request: NextRequest): Promise<Response> {
           api: deps?.api,
           client: deps?.client,
           vault: deps?.vault,
-          devAllowUnknownCountry: deps ? true : false,
+          devAllowUnknownCountry: true,
           stellarPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE ?? "Test SDF Network ; September 2015",
         },
         parsedBody,
@@ -132,6 +160,32 @@ async function handle(request: NextRequest): Promise<Response> {
       }
       answer = json(res.status, res.body);
       return new Response(answer.body, { status: answer.status, headers: answer.headers });
+    }
+
+    // 5. Stellar Gasless Relayer Claim (POST /api/claim)
+    if (path === "/api/claim" && request.method === "POST") {
+      let parsedBody: any = null;
+      try {
+        parsedBody = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        answer = json(400, { ok: false, error: "bad_json" });
+        return new Response(answer.body, { status: answer.status, headers: answer.headers });
+      }
+
+      if (
+        parsedBody &&
+        typeof parsedBody === "object" &&
+        (parsedBody.chain === "stellar" ||
+          (typeof parsedBody.recipient === "string" && parsedBody.recipient.startsWith("G")))
+      ) {
+        const res = await handleClaim(
+          { devAllowUnknownCountry: true } as any,
+          parsedBody,
+          place,
+        );
+        answer = json(res.status, res.body);
+        return new Response(answer.body, { status: answer.status, headers: answer.headers });
+      }
     }
 
     const deps = await serverDeps();

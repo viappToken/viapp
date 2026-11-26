@@ -21,10 +21,27 @@ export async function readBalances(address: Address | string): Promise<Balances>
       ]);
       return { usdt, usdtDecimals, bnb, xlm: bnb };
     }
-    // Stellar address or tester wallet
-    return { usdt: 100_000_000_000_000_000_000n, usdtDecimals: 18, bnb: 25_000_000_000_000_000_000n, xlm: 25_000_000_000_000_000_000n };
+    if (typeof address === "string" && address.startsWith("G") && address.length === 56) {
+      const res = await fetch(`https://horizon-testnet.stellar.org/accounts/${address}`, {
+        headers: { accept: "application/json" },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          balances?: { asset_type?: string; asset_code?: string; balance?: string }[];
+        };
+        const list = Array.isArray(data.balances) ? data.balances : [];
+        const nativeRow = list.find((b) => b.asset_type === "native");
+        const usdcRow = list.find((b) => b.asset_code === "USDC");
+        const xlmFloat = nativeRow?.balance ? parseFloat(nativeRow.balance) : 0;
+        const usdcFloat = usdcRow?.balance ? parseFloat(usdcRow.balance) : xlmFloat * 0.12;
+        const xlmUnits = BigInt(Math.floor(xlmFloat * 1e7)) * 10n ** 11n;
+        const usdtUnits = BigInt(Math.floor(usdcFloat * 1e7)) * 10n ** 11n;
+        return { usdt: usdtUnits, usdtDecimals: 18, bnb: xlmUnits, xlm: xlmUnits };
+      }
+    }
+    return { usdt: 0n, usdtDecimals: 18, bnb: 0n, xlm: 0n };
   } catch {
-    return { usdt: 100_000_000_000_000_000_000n, usdtDecimals: 18, bnb: 25_000_000_000_000_000_000n, xlm: 25_000_000_000_000_000_000n };
+    return { usdt: 0n, usdtDecimals: 18, bnb: 0n, xlm: 0n };
   }
 }
 

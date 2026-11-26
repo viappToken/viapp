@@ -12,7 +12,7 @@ import {
 } from "../src/gift.js";
 
 describe("Property-Based Fuzz Testing: Stellar Ed25519 Claim Pipeline", () => {
-  const VAULT_ID = "CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M";
+  const VAULT_ID = "CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4";
   const PASSPHRASE = Networks.TESTNET;
 
   it("invariant: arbitrary valid keypair always signs and verifies registration proof", async () => {

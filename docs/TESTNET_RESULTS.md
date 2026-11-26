@@ -1,347 +1,114 @@
 # ViApp Protocol: Stellar Testnet Execution & Verification Results
 
-**Contract ID:** [`CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M`](https://stellar.expert/explorer/testnet/contract/CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M)  
-**WASM Hash:** `89cfaedb8f5c3933e47dbb6f5eed3f182a31ed972738f60ef61efbd6b2f85266`  
+**Contract ID:** [`CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4`](https://stellar.expert/explorer/testnet/contract/CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4)  
+**WASM Hash (`wasm32v1-none`, 13,062 bytes):** `14e4c5a834f2bd49719a030108c7b9140c6cdeca89859a0f84e58ecc004127b5`  
 **Network:** Stellar Testnet (`Test SDF Network ; September 2015`)  
 **Soroban RPC:** `https://soroban-testnet.stellar.org`  
 **Horizon REST:** `https://horizon-testnet.stellar.org`  
-**Maintainer / Deployer:** `ibochivincent.lang <290086463+ibochivincent-lang@users.noreply.github.com>`  
+**Deployment Manifest:** [`.deployments/testnet.json`](../.deployments/testnet.json)  
 
 ---
 
-## 1. Executive Summary & Verification Matrix
+## 1. Executive Summary & Live On-Chain Verification Matrix
 
-Every transaction, contract state transition, and cryptographic proof described in the ViApp protocol specification is deployed, executed, and verifiable on the public **Stellar Testnet**:
+Every transaction, contract state transition, and cryptographic proof below was executed on the public **Stellar Testnet** and is independently verifiable via Horizon, Soroban RPC, or StellarExpert:
 
 | Action / Capability | On-Chain Function | Stellar Testnet Tx Hash | Explorer Link | Result |
 |---|---|---|:---:|:---:|
-| **1. Deploy Contract** | `stellar contract deploy` | `8675102f1054b1322c73c378ad28f42ad1ab094dfcea556c4266e62db48b4be5` | [View Deploy Tx](https://stellar.expert/explorer/testnet/tx/8675102f1054b1322c73c378ad28f42ad1ab094dfcea556c4266e62db48b4be5) | **SUCCESS** (Ledger 614210) |
-| **2. Initialize Vault** | `init(admin)` | `2593bb74aefcb81c78b2a7d8518cffe28cbb71a05655dc314280f69fb9b72010` | [View Init Tx](https://stellar.expert/explorer/testnet/tx/2593bb74aefcb81c78b2a7d8518cffe28cbb71a05655dc314280f69fb9b72010) | **SUCCESS** (Admin Bound) |
-| **3. Whitelist Token** | `set_token_listed(token, true)` | `e8321a4f09d841b9c24098ea45731df4109405cda9e06180df4e2870129ad418` | [View Token Listing Tx](https://stellar.expert/explorer/testnet/tx/e8321a4f09d841b9c24098ea45731df4109405cda9e06180df4e2870129ad418) | **SUCCESS** (Native SAC Listed) |
-| **4. Create Gift Escrow** | `create_gift(...)` | `ad2a84c5d2dbda6d4c43c9abe7f45916c5e9a107aa3e3bdaf9f8b05d1164ae94` | [View Create Gift Tx](https://stellar.expert/explorer/testnet/tx/ad2a84c5d2dbda6d4c43c9abe7f45916c5e9a107aa3e3bdaf9f8b05d1164ae94) | **SUCCESS** (Gift #1 Minted) |
-| **5. Gasless Relayer Claim** | `claim(relayer, gift_id, ...)` | `21d69188fc46dbee51e4c1f5c138f3dd0654ef8b0af8fd8ebe6b88bc3b28eaff` | [View Claim Tx](https://stellar.expert/explorer/testnet/tx/21d69188fc46dbee51e4c1f5c138f3dd0654ef8b0af8fd8ebe6b88bc3b28eaff) | **SUCCESS** (Gasless Settlement) |
-| **6. Emergency Refund** | `refund(gift_id)` | Simulated & Verified in Test Suite | `test_refund_expired_success` | **SUCCESS** (Unpausable) |
-| **7. Institutional Reserve Routing** | `executeResilientBridgePurchase` | Institutional BSC bStocks Routing | `test/bridge.test.ts` | **SUCCESS** (1:1 Reserve Maintained) |
+| **1. Mint & Trustlines (9 Stocks)** | Classic `changeTrust` + `payment` | `fd96a64efd56f2005299ec92b90cfbfb7af8f21fd91fc5e091d1286374d4f39a` | [View Tx](https://stellar.expert/explorer/testnet/tx/fd96a64efd56f2005299ec92b90cfbfb7af8f21fd91fc5e091d1286374d4f39a) | **SUCCESS** |
+| **2. Upload Optimized WASM** | `stellar contract upload` | `9311be00c2f195ea2b669be8b4da07337da9e0c27a97173165bcb3a50467ff6d` | [View Tx](https://stellar.expert/explorer/testnet/tx/9311be00c2f195ea2b669be8b4da07337da9e0c27a97173165bcb3a50467ff6d) | **SUCCESS** |
+| **3. Deploy & Init GiftVault** | `__constructor(admin, relayer, initial_tokens)` | `91a51bd598a3f77e3ca50cd0ba5cd96c8b23d53e6174cb444137ab88761e85d2` | [View Tx](https://stellar.expert/explorer/testnet/tx/91a51bd598a3f77e3ca50cd0ba5cd96c8b23d53e6174cb444137ab88761e85d2) | **SUCCESS** |
+| **4. Whitelist Token (QQQ SAC)** | `set_token_listed(token, true)` | `a93c5a042e1762acd6f1571b001b988071fd87dca76aaa3651eb3869984a859e` | [View Tx](https://stellar.expert/explorer/testnet/tx/a93c5a042e1762acd6f1571b001b988071fd87dca76aaa3651eb3869984a859e) | **SUCCESS** |
+| **5. Create Gift #1 (`1.0 NVDA`)** | `create_gift(...)` | `a45ef1cc24c138ccfd2b9e55645247482a4621004816535ec819e45ef902f5cc` | [View Tx](https://stellar.expert/explorer/testnet/tx/a45ef1cc24c138ccfd2b9e55645247482a4621004816535ec819e45ef902f5cc) | **SUCCESS** |
+| **6. Gasless Claim Gift #1 (`NVDA`)** | `claim(1, recipient, signature)` | `abdefd9b50f8575178869779022ab3e1171046eefcc460595e1b92dc2c93b109` | [View Tx](https://stellar.expert/explorer/testnet/tx/abdefd9b50f8575178869779022ab3e1171046eefcc460595e1b92dc2c93b109) | **SUCCESS** |
+| **7. Create Open Gift #2 (`0.5 AAPL`)** | `create_gift(...)` | `5b8b7809ae715c90e2259c21b46d2c90982ab7a1ddd0437e7a97df4119dfe251` | [View Tx](https://stellar.expert/explorer/testnet/tx/5b8b7809ae715c90e2259c21b46d2c90982ab7a1ddd0437e7a97df4119dfe251) | **SUCCESS** |
+| **8. Create Open Gift #3 (`0.7 NVDA`)** | `create_gift(...)` | `1b6661dcccc7dd4e76de910354c384f18ae19f89f21a5b8f5ebdfa85d0af9bfc` | [View Tx](https://stellar.expert/explorer/testnet/tx/1b6661dcccc7dd4e76de910354c384f18ae19f89f21a5b8f5ebdfa85d0af9bfc) | **SUCCESS** |
 
 ---
 
-## 2. On-Chain Command Logs & Transaction Receipts
+## 2. Live CLI Verification Commands (Run Directly Against Stellar Testnet)
 
-### 2.1 Smart Contract Deployment
+You can verify the live contract state right now using the `stellar` CLI:
 
-```bash
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/viapp_gift_vault.optimized.wasm \
-  --source deployer \
-  --network testnet
-```
-
-**RPC Transaction Output:**
-```json
-{
-  "status": "SUCCESS",
-  "contractId": "CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M",
-  "wasmHash": "89cfaedb8f5c3933e47dbb6f5eed3f182a31ed972738f60ef61efbd6b2f85266",
-  "transactionHash": "8675102f1054b1322c73c378ad28f42ad1ab094dfcea556c4266e62db48b4be5",
-  "ledgerSequence": 614210,
-  "cpuInvocations": 142058,
-  "memBytes": 482104,
-  "feeChargedStroops": 100
-}
-```
-
----
-
-### 2.2 Contract Initialization (`init`)
-
-Sets the protocol governance administrator and configures persistent state TTL buffers:
-
+### 2.1 Verify All 11 Listed SAC Tokens (`listed_tokens`)
 ```bash
 stellar contract invoke \
-  --id CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M \
-  --source deployer \
+  --id CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4 \
+  --source-account GAZWESWQPZOIH2EH3IL37THBLKGLAC5FCHTLMWAXJGLKJPT4NRRIHN6B \
   --network testnet \
-  -- init \
-  --admin GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
+  --send=no \
+  -- listed_tokens
 ```
-
-**RPC Transaction Output:**
+**Live Output:**
 ```json
-{
-  "status": "SUCCESS",
-  "transactionHash": "2593bb74aefcb81c78b2a7d8518cffe28cbb71a05655dc314280f69fb9b72010",
-  "returnValue": "void",
-  "ledgerSequence": 614215,
-  "events": [
-    {
-      "type": "contract",
-      "topics": ["Symbol(init)", "Address(GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5)"],
-      "data": "Symbol(ok)"
-    }
-  ]
-}
+[
+  "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+  "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+  "CBUEWQFAQJUMIU7PU6U64Q35NCGF752BB7JHYKMEUZ6OA7767S66EYJB",
+  "CAX6GMJ7R4SKDEPHDFPJJMGYXNBWNFUOLDZZIQUV3PMRIMDRGUEY3RZV",
+  "CCX7WIJYXP2HXPMKKAOLYSMTVTLFYZDRBC5OR3O4S2QGBGUWN5NZQUVU",
+  "CA566SBZVF5XPOHA5IBIDNSKJ7OBD5UT7V5LZZUSSQCXJ3BQ7RXNMVAU",
+  "CCSCABC5NOE7VSZY7FJOOQOGVIHIHCXW2G5ETERS3J2CPAMF3DKFLAOL",
+  "CDLGAWB22W2PSU6UBTIC2O2XOX7AXQQXEM6V4TGIZWW6OH6VA6NAHXJD",
+  "CABP7JTR5F7VAX73NIWFAMJVN3HDAOG6TALS62UEUQHY3ZSJ3T23VKWC",
+  "CCD3SEF2BGN4FSSQLXACT2V2I7QWVA2HW54HJCWJMKHKJ7ZYSXXCSH5Z",
+  "CCON7JI5MMA2A55E4K6VCAVQV4GXP37BLPBRIKENFPSSP33ADTF7C7Q7"
+]
 ```
 
----
-
-### 2.3 Asset Listing (`set_token_listed`)
-
-Enables the Native XLM SAC (`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`) and Tokenized Stock SACs:
-
+### 2.2 Query Next Gift ID (`next_gift_id`)
 ```bash
 stellar contract invoke \
-  --id CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M \
-  --source deployer \
+  --id CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4 \
+  --source-account GAZWESWQPZOIH2EH3IL37THBLKGLAC5FCHTLMWAXJGLKJPT4NRRIHN6B \
   --network testnet \
-  -- set_token_listed \
-  --token CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC \
-  --listed true
+  --send=no \
+  -- next_gift_id
 ```
+**Live Output:** `4` (Gifts #1, #2, and #3 exist on-chain).
 
-**RPC Transaction Output:**
-```json
-{
-  "status": "SUCCESS",
-  "transactionHash": "e8321a4f09d841b9c24098ea45731df4109405cda9e06180df4e2870129ad418",
-  "returnValue": "true",
-  "events": [
-    {
-      "type": "contract",
-      "topics": ["Symbol(token_listed)", "Address(CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC)"],
-      "data": "true"
-    }
-  ]
-}
-```
-
----
-
-### 2.4 Gift Creation Transaction (`create_gift`)
-
-Locks 10,000,000 stroops (1 share) of tokenized stock into the contract escrow with an Ed25519 one-time registration key proof and encrypted client-side note:
-
+### 2.3 Inspect Gift #1 (`1.0 NVDA`, Claimed) and Gift #2 (`0.5 AAPL`, Open)
 ```bash
 stellar contract invoke \
-  --id CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M \
-  --source deployer \
+  --id CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4 \
+  --source-account GAZWESWQPZOIH2EH3IL37THBLKGLAC5FCHTLMWAXJGLKJPT4NRRIHN6B \
   --network testnet \
-  -- create_gift \
-  --sender GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5 \
-  --token CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC \
-  --amount 10000000 \
-  --claim_key 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
-  --expiry 1800000000 \
-  --sealed_note 00000000000000000000000000000000 \
-  --key_proof 11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-```
-
-**RPC Transaction Output:**
-```json
-{
-  "status": "SUCCESS",
-  "transactionHash": "ad2a84c5d2dbda6d4c43c9abe7f45916c5e9a107aa3e3bdaf9f8b05d1164ae94",
-  "returnValue": "u64(1)",
-  "ledgerSequence": 614289,
-  "events": [
-    {
-      "type": "contract",
-      "topics": ["Symbol(create_gift)", "u64(1)"],
-      "data": {
-        "sender": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-        "token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
-        "amount": "10000000",
-        "expiry": "1800000000"
-      }
-    }
-  ]
-}
+  --send=no \
+  -- get_gift --gift_id 1
 ```
 
 ---
 
-### 2.5 Gasless Claim via Fee-Bump Relayer (`claim`)
+## 3. Deployed Stellar Asset Contracts (SACs) on Stellar Testnet
 
-The recipient signs an on-chain authorization with their ephemeral claim secret. The ViApp relayer wraps the transaction in a `FeeBumpTransaction` envelope, paying network fees so the recipient incurs **zero gas costs**:
-
-```bash
-stellar contract invoke \
-  --id CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M \
-  --source relayer \
-  --network testnet \
-  -- claim \
-  --relayer GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN \
-  --gift_id 1 \
-  --recipient GCG2Q4N6GKL3W5J6V7J2M5LOH63YQW22G7V2L44VFL5CBY2Q4N6GKL3W \
-  --signature 55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555
-```
-
-**RPC Transaction Output:**
-```json
-{
-  "status": "SUCCESS",
-  "transactionHash": "21d69188fc46dbee51e4c1f5c138f3dd0654ef8b0af8fd8ebe6b88bc3b28eaff",
-  "returnValue": "void",
-  "ledgerSequence": 614302,
-  "feeBumpSponsor": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
-  "recipientTransferredAmount": 10000000,
-  "events": [
-    {
-      "type": "contract",
-      "topics": ["Symbol(claim)", "u64(1)", "Address(GCG2Q4N6GKL3W5J6V7J2M5LOH63YQW22G7V2L44VFL5CBY2Q4N6GKL3W)"],
-      "data": "Symbol(ok)"
-    }
-  ]
-}
-```
-
----
-
-## 3. Institutional Reserve Bridge Routing Demonstration
-
-ViApp's backend bridge automatically routes tokenized stock purchases directly to institutional reserves via bStocks on BNB Smart Chain:
-
-```typescript
-const result = await executeResilientBridgePurchase({
-  senderStellarAddress: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-  stockCode: "AAPL",
-  paymentAsset: "USDC",
-  usdAmount: 10.0,
-  giftId: 101n,
-  claimKeyHash: "0123...cdef",
-});
-```
-
-**Fulfillment Execution Log:**
-```json
-{
-  "ok": true,
-  "giftId": "101",
-  "stockCode": "AAPL",
-  "shares": "0.0437636",
-  "paymentAsset": "USDC",
-  "paymentAmount": "10.00",
-  "stellarVaultTxHash": "7374656c6c61723a7661756c743a313031000000000000000000000000000000",
-  "backingDetails": {
-    "venue": "bnb",
-    "contract": "0x431a3BEE82E2ca41e49895CbECE5bB0F76A89b7A",
-    "backingSymbol": "AAPLB",
-    "executionTxHash": "0x00006261636b696e673a626e623a4141504c423a313031",
-    "pegRatio": "1:1",
-    "reserveAttestationId": "attest:peg:1to1:AAPL:101:bnb",
-    "primaryAttempted": "bnb"
-  }
-}
-```
-
----
-
-## 4. Verified Pegged Asset Contract Addresses (CA) on Stellar Testnet
-
-Under Stellar's **Soroban SEP-0041 Stellar Asset Contract (SAC)** standard, every asset `Asset(code, issuer)` has a unique, deterministic 56-character Contract Address (CA) on the network (`Test SDF Network ; September 2015`).
-
-### 4.1 Core Protocol Infrastructure
-
-| Resource / Role | Address / Contract Address (CA) | Network | Status | Explorer Link |
-|---|---|:---:|:---:|---|
-| **Soroban GiftVault Contract** | `CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M` | Testnet | **ACTIVE** | [Stellar Expert Explorer](https://stellar.expert/explorer/testnet/contract/CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M) |
-| **Asset Issuer Account** | `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` | Testnet | **ACTIVE** | [Stellar Expert Account](https://stellar.expert/explorer/testnet/account/GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5) |
-| **Fee-Bump Relayer Wallet** | `GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN` | Testnet | **ACTIVE** | [Stellar Expert Account](https://stellar.expert/explorer/testnet/account/GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN) |
-| **Native XLM SAC** | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` | Testnet | **VERIFIED** | [Stellar Expert Explorer](https://stellar.expert/explorer/testnet/contract/CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC) |
-| **USDC SAC (Testnet)** | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` | Testnet | **VERIFIED** | [Stellar Expert Explorer](https://stellar.expert/explorer/testnet/contract/CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA) |
-
----
-
-### 4.2 Pegged bStocks on Stellar Testnet (BNB Chain Backing)
-
-| Symbol | Company / Asset Name | Stellar Contract Address (CA / Soroban SAC ID) | Stellar Asset Identifier | Underlying BSC Contract (Chain 56) | Decimals | Explorer Link |
-|:---:|---|---|---|---|:---:|:---:|
-| **AAPLB** | Apple Inc. (bStock) | `CATA5NBHXMEDAIWIOPCVKWCAKJKNZHJYNM6TAVYUWWJBYI34GCPCOCPC` | `AAPLB:GBBD47IF...` | `0x431a3BEE82E2ca41e49895CbECE5bB0F76A89b7A` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CATA5NBHXMEDAIWIOPCVKWCAKJKNZHJYNM6TAVYUWWJBYI34GCPCOCPC) |
-| **NVDAB** | NVIDIA Corp (bStock) | `CASL52FJPTMLW6OF7WW22BKJR65ZKJDVN6FUPPITOORD6XHVLPMKQPXK` | `NVDAB:GBBD47IF...` | `0x02Fca66C1D1aFB4E2A7884261eB00F63598a7436` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CASL52FJPTMLW6OF7WW22BKJR65ZKJDVN6FUPPITOORD6XHVLPMKQPXK) |
-| **TSLAB** | Tesla, Inc. (bStock) | `CDYWUJWE3MHA6XFCWE2KQAPHTB6I6KLENR22CEMRMRNADOQKSIH2G66T` | `TSLAB:GBBD47IF...` | `0x5b1910eAaD6450E50f816082Aa078C41F10C292f` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDYWUJWE3MHA6XFCWE2KQAPHTB6I6KLENR22CEMRMRNADOQKSIH2G66T) |
-| **MSFTB** | Microsoft Corp (bStock) | `CDLZDMMEDN7JHALRZP7YNHDWYE4ZPGD2OS4WPW5RFL5NIUY6FCYULQA2` | `MSFTB:GBBD47IF...` | `0x80106cb3EAD06659A5ad19DF39D9b4733863B9b0` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDLZDMMEDN7JHALRZP7YNHDWYE4ZPGD2OS4WPW5RFL5NIUY6FCYULQA2) |
-| **AMZNB** | Amazon.com Inc. (bStock) | `CDJUNTLCCHCBGZ5WRYCKP7DTNNSC432LVZFPBDPZGGOK6TXHHZDBKOJW` | `AMZNB:GBBD47IF...` | `0x1a4b499833A79A09ad7Cf1D42D7DacF71e92eb00` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDJUNTLCCHCBGZ5WRYCKP7DTNNSC432LVZFPBDPZGGOK6TXHHZDBKOJW) |
-| **GOOGLB**| Alphabet Inc. (bStock) | `CCJGTL3OEZHPVK4F6JDE33CQEB5BIGNWMIXSNVQKDMBQXOSTG3YSAYAB` | `GOOGLB:GBBD47IF...` | `0x3F53De71c126BdaBAe20f9cD64848d317f6C3238` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCJGTL3OEZHPVK4F6JDE33CQEB5BIGNWMIXSNVQKDMBQXOSTG3YSAYAB) |
-| **METAB** | Meta Platforms (bStock) | `CBPZVV47KJMR3WFSQQQQDPIZ65PXC32PKC3Y2PSW2VOMZFKRZR3AFTWK` | `METAB:GBBD47IF...` | `0x7425889FE94F9d693E8daefE88BCCed6AcFEf4c0` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CBPZVV47KJMR3WFSQQQQDPIZ65PXC32PKC3Y2PSW2VOMZFKRZR3AFTWK) |
-| **SPYB**  | SPDR S&P 500 ETF (bStock)| `CDKMMYABR57HER37CGY4QYVXUHXOMS5BZH2WH5KJXV7N26PZXX56WLU4` | `SPYB:GBBD47IF...` | `0x7138b48df7D98D7e3cc221BfE7192D0a178182D8` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDKMMYABR57HER37CGY4QYVXUHXOMS5BZH2WH5KJXV7N26PZXX56WLU4) |
-| **QQQB**  | Invesco QQQ Trust (bStock)| `CDLWOXHR5DHZJ3MYCSM6SIDNYTVYIGHS7CU2A6YPEMKR57ECNF533W23` | `QQQB:GBBD47IF...` | `0x205812CdBed920aFf76C6580abD681a46D11efc7` | 7 (18 BSC) | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDLWOXHR5DHZJ3MYCSM6SIDNYTVYIGHS7CU2A6YPEMKR57ECNF533W23) |
-
----
-
-### 4.3 Direct Canonical Equities on Stellar Testnet (Phase 2 Native Roadmap)
-
-| Symbol | Company / Asset Name | Stellar Contract Address (CA / Soroban SAC ID) | Stellar Asset Identifier | Decimals | Explorer Link |
+| Symbol | Asset Name | Deployed Stellar SAC Contract ID (Testnet) | Issuer Account | Decimals | Explorer Link |
 |:---:|---|---|---|:---:|:---:|
-| **AAPL** | Apple Inc. | `CCAPPOAZYAHIJVWFQFTL3AUPCVRADODVIFTXQZ2GMAYMYPLUPA3PRMYB` | `AAPL:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCAPPOAZYAHIJVWFQFTL3AUPCVRADODVIFTXQZ2GMAYMYPLUPA3PRMYB) |
-| **NVDA** | NVIDIA Corp | `CCU5ABICR2MGWDRYS66DHG2XFFVEAH3L24RW7YVJG2V64JZNAKDFN273` | `NVDA:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCU5ABICR2MGWDRYS66DHG2XFFVEAH3L24RW7YVJG2V64JZNAKDFN273) |
-| **TSLA** | Tesla, Inc. | `CCB43KY52JEQQGWPG7EAMJQAIQN3JGRCB32BWLEIQYZXMKGC54OGGIMV` | `TSLA:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCB43KY52JEQQGWPG7EAMJQAIQN3JGRCB32BWLEIQYZXMKGC54OGGIMV) |
-| **MSFT** | Microsoft Corp | `CCGG56J2LV7IBSD3EJJKVNAG7ERW3VGCPJZLLDXX7CROPKWWUFSPH7BN` | `MSFT:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCGG56J2LV7IBSD3EJJKVNAG7ERW3VGCPJZLLDXX7CROPKWWUFSPH7BN) |
-| **AMZN** | Amazon.com Inc. | `CCR3BXQHQZCQKA2QRJEAVTBHKPJHQ4SKODEUGRYYJ7G6Z2B6I4XFR7SF` | `AMZN:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCR3BXQHQZCQKA2QRJEAVTBHKPJHQ4SKODEUGRYYJ7G6Z2B6I4XFR7SF) |
-| **GOOGL**| Alphabet Inc. | `CDC2D42E5XKGWZMEMYPAXBIQDGB3K5XOLFRFWXQL7GWVA6FON53SVM4Q` | `GOOGL:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDC2D42E5XKGWZMEMYPAXBIQDGB3K5XOLFRFWXQL7GWVA6FON53SVM4Q) |
-| **META** | Meta Platforms | `CC42VT327WQHTBVN5LSE2CD2SS3ZTFKK33ORHH3FB5E325CMKF42Q5GR` | `META:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CC42VT327WQHTBVN5LSE2CD2SS3ZTFKK33ORHH3FB5E325CMKF42Q5GR) |
-| **SPY**  | SPDR S&P 500 ETF | `CBMZOYI5IGWKTR6NFE4EOGRY4F42VGALGAHNKALGMLM4LSBQB2HLSEJI` | `SPY:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CBMZOYI5IGWKTR6NFE4EOGRY4F42VGALGAHNKALGMLM4LSBQB2HLSEJI) |
-| **QQQ**  | Invesco QQQ Trust | `CBYFYMD5DHE2L4NVANVATRLGDZ43IKNWKYL36UWIDO6YTV4YZHPNSMI4` | `QQQ:GBBD47IF...` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CBYFYMD5DHE2L4NVANVATRLGDZ43IKNWKYL36UWIDO6YTV4YZHPNSMI4) |
+| **AAPL** | Apple Inc. | `CBUEWQFAQJUMIU7PU6U64Q35NCGF752BB7JHYKMEUZ6OA7767S66EYJB` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CBUEWQFAQJUMIU7PU6U64Q35NCGF752BB7JHYKMEUZ6OA7767S66EYJB) |
+| **NVDA** | NVIDIA Corp | `CAX6GMJ7R4SKDEPHDFPJJMGYXNBWNFUOLDZZIQUV3PMRIMDRGUEY3RZV` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CAX6GMJ7R4SKDEPHDFPJJMGYXNBWNFUOLDZZIQUV3PMRIMDRGUEY3RZV) |
+| **TSLA** | Tesla, Inc. | `CCX7WIJYXP2HXPMKKAOLYSMTVTLFYZDRBC5OR3O4S2QGBGUWN5NZQUVU` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCX7WIJYXP2HXPMKKAOLYSMTVTLFYZDRBC5OR3O4S2QGBGUWN5NZQUVU) |
+| **MSFT** | Microsoft Corp | `CA566SBZVF5XPOHA5IBIDNSKJ7OBD5UT7V5LZZUSSQCXJ3BQ7RXNMVAU` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CA566SBZVF5XPOHA5IBIDNSKJ7OBD5UT7V5LZZUSSQCXJ3BQ7RXNMVAU) |
+| **AMZN** | Amazon.com Inc. | `CCSCABC5NOE7VSZY7FJOOQOGVIHIHCXW2G5ETERS3J2CPAMF3DKFLAOL` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCSCABC5NOE7VSZY7FJOOQOGVIHIHCXW2G5ETERS3J2CPAMF3DKFLAOL) |
+| **GOOGL**| Alphabet Inc. | `CDLGAWB22W2PSU6UBTIC2O2XOX7AXQQXEM6V4TGIZWW6OH6VA6NAHXJD` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDLGAWB22W2PSU6UBTIC2O2XOX7AXQQXEM6V4TGIZWW6OH6VA6NAHXJD) |
+| **META** | Meta Platforms | `CABP7JTR5F7VAX73NIWFAMJVN3HDAOG6TALS62UEUQHY3ZSJ3T23VKWC` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CABP7JTR5F7VAX73NIWFAMJVN3HDAOG6TALS62UEUQHY3ZSJ3T23VKWC) |
+| **SPY**  | SPDR S&P 500 ETF | `CCD3SEF2BGN4FSSQLXACT2V2I7QWVA2HW54HJCWJMKHKJ7ZYSXXCSH5Z` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCD3SEF2BGN4FSSQLXACT2V2I7QWVA2HW54HJCWJMKHKJ7ZYSXXCSH5Z) |
+| **QQQ**  | Invesco QQQ Trust | `CCON7JI5MMA2A55E4K6VCAVQV4GXP37BLPBRIKENFPSSP33ADTF7C7Q7` | `GAJZNVL4...NNFN` | 7 | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCON7JI5MMA2A55E4K6VCAVQV4GXP37BLPBRIKENFPSSP33ADTF7C7Q7) |
 
 ---
 
-## 5. Full Automated Test Battery Verification
+## 4. Automated Test Suite Results
 
 ### 4.1 Soroban Smart Contracts Test Suite (`cargo test`)
-
 ```text
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
-     Running tests\test_vault.rs
-
-running 6 tests
-test test_pause_unpause ... ok
-test test_initialize_and_view_functions ... ok
+running 9 tests
+test test_pause_unpause_and_admin_auth_tree ... ok
+test test_constructor_and_view_functions ... ok
+test test_set_token_listed_dynamic_allowlist ... ok
 test test_refund_expired_success ... ok
 test test_unpausable_refund ... ok
-test test_create_gift_and_claim_success ... ok
+test test_rescue_surplus_protects_open_gift_liabilities ... ok
+test test_negative_security_guards_and_error_paths ... ok
+test test_create_gift_and_claim_success_with_auth_verification ... ok
 test test_multi_venue_tokenized_stocks_and_liabilities ... ok
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 9 passed; 0 failed
 ```
-
-### 4.2 TypeScript Core Test Suite (`vitest run packages/core`)
-
-```text
- RUN  v5.0.3 C:/Users/User/.gemini/antigravity/scratch/viapp/packages/core
-
- ✓ test/gift-stellar.test.ts (8 tests)
- ✓ test/gift.test.ts (68 tests)
- ✓ test/fuzz-stellar-claim.test.ts (3 tests)
- ✓ test/mainnet-readiness.test.ts (9 tests)
- ✓ test/trade-stellar.test.ts (23 tests)
- ✓ test/bridge.test.ts (10 tests)
- ✓ test/sep.test.ts (11 tests)
- ✓ test/stocks-stellar.test.ts (6 tests)
- ✓ test/stellar-client.test.ts (3 tests)
- ✓ test/quote.test.ts (11 tests)
- ✓ test/client-send.test.ts (14 tests)
- ✓ test/client-claim.test.ts (8 tests)
- ✓ test/relayer.test.ts (41 tests)
- ✓ test/store.test.ts (15 tests)
- ... [30 additional test files]
-
- Test Files  40 passed (40)
-      Tests  546 passed (546)
-   Duration  28.9s (100% green)
-```
-
-### 4.3 CLI Agent Test Suite (`vitest run packages/agent`)
-
-```text
- RUN  v5.0.3 C:/Users/User/.gemini/antigravity/scratch/viapp/packages/agent
-
- ✓ test/baw.test.ts (11 tests)
- ✓ test/preflight.test.ts (8 tests)
- ✓ test/pinned.test.ts (7 tests)
- ✓ test/gift.test.ts (33 tests)
-
- Test Files  4 passed (4)
-      Tests  59 passed (59)
-   Duration  4.58s (100% green)
-```
-
-**Total Verified Automated Test Count:** **611 Passed / 0 Failed / 100% Green CI**
-

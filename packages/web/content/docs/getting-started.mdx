@@ -15,7 +15,7 @@ Someone sent you a tokenized stock gift link. You do not need an existing wallet
 2. **Sign In:** Tap **"Sign in to open it"** with your Google account, email, or a biometric device passkey. ViApp creates a non-custodial Stellar wallet for you in under 5 seconds.
 3. **Declare Eligibility:** Check the box confirming you are not a US person and not located in a restricted/sanctioned jurisdiction.
 4. **Claim Your Stock:** Tap **"Open your gift"**. ViApp's relayer submits the claim transaction to the Stellar network and sponsors all network gas fees.
-5. **Ownership Confirmed:** You see your certificate seal, the exact fractional share count, the sender's encrypted note, and a live verification link on [Stellar Expert Explorer](https://stellar.expert/explorer/testnet/contract/CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M).
+5. **Ownership Confirmed:** You see your certificate seal, the exact fractional share count, the sender's encrypted note, and a live verification link on [Stellar Expert Explorer](https://stellar.expert/explorer/testnet/contract/CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4).
 6. **Flexible Actions:** You can hold your stock, instantly liquidate to native Stellar USDC on SDEX, or cash out at physical MoneyGram retail locations worldwide.
 
 ---
@@ -40,7 +40,7 @@ You need a Stellar-compatible wallet (Freighter, xBull, Albedo, or WebAuth passk
 3. Enter your tester authorization token into the input box.
 4. Tick the compliance eligibility declaration.
 5. Tap **"Claim my share"**. The Soroban smart contract transfers a live share of tokenized stock to your wallet, and ViApp's relayer pays the transaction fees.
-6. View the live transaction on [Stellar Expert Explorer](https://stellar.expert/explorer/testnet/contract/CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M).
+6. View the live transaction on [Stellar Expert Explorer](https://stellar.expert/explorer/testnet/contract/CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4).
 
 ---
 
@@ -49,7 +49,7 @@ You need a Stellar-compatible wallet (Freighter, xBull, Albedo, or WebAuth passk
 ### Prerequisites
 
 - **Node.js** 22+ and **npm**
-- **Rust toolchain** (`cargo`) with `wasm32-unknown-unknown` target for Soroban smart contracts
+- **Rust toolchain** (`cargo`) with `wasm32v1-none` target for Stellar Smart Contracts
 
 ### Clone & Install
 
@@ -62,10 +62,10 @@ npm install
 ### Run Test Suites
 
 ```bash
-# Run all TypeScript test suites (508 core tests, 59 agent tests)
+# Run TypeScript test suites
 npm test
 
-# Run Soroban Rust smart contract test suite (cargo test)
+# Run Soroban Rust smart contract test suite (9 passing unit & auth-tree tests)
 cd packages/contracts/stellar
 cargo test
 ```
@@ -82,7 +82,7 @@ cp .env.example .env
 |---|---|
 | `STELLAR_NETWORK` | Network name (`testnet` or `mainnet`). |
 | `STELLAR_RPC_URL` | Stellar Soroban RPC endpoint (`https://soroban-testnet.stellar.org`). |
-| `STELLAR_VAULT_CONTRACT_ID` | Deployed `viapp-gift-vault` contract address (`CDEDHFJ7POEWDFFDRV74ZIWK4CSDKGEN4B4IQXUZHMKGVMJIVFODEV5M`). |
-| `STELLAR_RELAYER_SECRET` | Secret key for the fee-bump sponsor relayer. |
+| `STELLAR_VAULT_CONTRACT_ID` | Deployed `viapp-gift-vault` contract address (`CDG2MIJEGLAIS37FXNF3KSFIQYL4VN5AUVLRLXK47SHQTHVVILPKCBD4`). |
+| `STELLAR_RELAYER_SECRET` | Secret key (`S...`) for the gasless claim relayer (`GANCS3FFF5TPPCBCNO4MFTMEIMDK4BO2LJYTEBG57F3DNX7JRYJ5WTKH`). |
 | `NEXT_PUBLIC_PRIVY_APP_ID` | Embedded authentication app ID. |
 | `UPSTASH_REDIS_REST_URL` | Ephemeral store for rate limiting and replay protection. |
