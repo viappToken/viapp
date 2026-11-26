@@ -12,6 +12,7 @@
     "viapp": "tsx src/cli.ts"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^14.5.1",
     "@viapp/core": "*",
     "viem": "2.57.3",
     "zod": "4.6.5"
