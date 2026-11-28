@@ -10,6 +10,9 @@ export interface StellarCurrency {
   conditions?: string;
   anchor_asset_type?: string;
   anchor_asset?: string;
+  regulated?: boolean;
+  approval_server?: string;
+  approval_criteria?: string;
 }
 
 export interface StellarTomlData {
